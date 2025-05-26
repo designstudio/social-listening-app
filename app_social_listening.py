@@ -170,11 +170,11 @@ O JSON deve ter a seguinte estrutura (atenção aos tipos de dados e nomes das c
     }}
   ]
 }}
-    """
+    "
 
     Texto para análise:
     "{text_to_analyze}"
-    """
+    "
 
     try:
         response = model.generate_content(prompt)
