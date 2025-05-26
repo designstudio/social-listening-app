@@ -21,7 +21,7 @@ if not gemini_api_key:
     st.stop()
 
 genai.configure(api_key=gemini_api_key)
-MODEL_NAME = "gemini-2.0-flash"    # Usando o Gemini 2.0 Flash
+MODEL_NAME = "gemini-2.0-flash"
 model = genai.GenerativeModel(MODEL_NAME)
 
 # ---- PALETA ----
@@ -132,6 +132,9 @@ Estrutura:
     }}
   ]
 }}
+Sobre o agrupamento de termos ("term_clusters"): 
+Retorne de 15 a 30 termos distintos e relevantes, com frequência real e variada (maior frequência = mais mencionado), 
+evite empates desnecessários e garanta variedade temática.
 Texto para análise:
 "{text_to_analyze}"
     """
@@ -295,27 +298,32 @@ def plot_word_cloud(term_clusters_data):
     if not term_clusters_data:
         st.warning("Dados de termos vazios.")
         return
+
+    # Seleciona os top 30 termos (ou mínimo 15) para a wordcloud, se possível
+    top_n = max(15, min(30, len(term_clusters_data)))
+    sorted_terms = dict(sorted(term_clusters_data.items(), key=lambda item: item[1], reverse=True)[:top_n])
+
     def color_func(word, font_size, position, orientation, random_state=None, **kwargs):
         cores = [CUSTOM_COLORS['primary'], CUSTOM_COLORS['secondary']]
         return random.choice(cores)
+
     wordcloud = WordCloud(
-        width=800,
-        height=400,
+        width=1200,
+        height=600,
         background_color=CUSTOM_COLORS['background'],
         color_func=color_func,
-        min_font_size=24,
-        max_font_size=90,
-        max_words=30,
-        prefer_horizontal=1.0,
+        min_font_size=28,
+        max_font_size=120,
+        max_words=top_n,
+        prefer_horizontal=0.95,
         scale=2,
-        contour_width=0,
         collocations=False,
         font_path=None
-    ).generate_from_frequencies(term_clusters_data)
-    fig, ax = plt.subplots(figsize=(10, 5))
+    ).generate_from_frequencies(sorted_terms)
+    fig, ax = plt.subplots(figsize=(14, 7))
     ax.imshow(wordcloud, interpolation='bilinear')
     ax.axis('off')
-    plt.title('3. Agrupamento de Termos (Nuvem de Palavras)', fontsize=20, pad=12, color=CUSTOM_COLORS['secondary'])
+    plt.title('3. Agrupamento de Termos (Nuvem de Palavras)', fontsize=22, pad=18, color=CUSTOM_COLORS['secondary'])
     plt.tight_layout()
     st.pyplot(fig)
 
@@ -381,7 +389,7 @@ if all_comments_list:
     MAX_TEXT_LENGTH_FOR_GEMINI = 100000
     combined_comments = "\n".join(all_comments_list)
     if len(combined_comments) > MAX_TEXT_LENGTH_FOR_GEMINI:
-        st.warning(f"O número de caracteres total dos comentários ({len(combined_comments)}) excede o limite recomendado para a API ({MAX_TEXT_LENGTH_FOR_GEMINI}). A análise será realizada com uma amostra truncada dos comentários.")
+        st.warning(f"O número de caracteres total dos comentários ({len(combined_comments)}) excede o limite recomendado ({MAX_TEXT_LENGTH_FOR_GEMINI}). Usando amostra truncada.")
         combined_comments = combined_comments[:MAX_TEXT_LENGTH_FOR_GEMINI] + "..."
 
     if 'analysis_results' not in st.session_state or st.session_state.get('last_combined_comments') != combined_comments:
@@ -439,8 +447,6 @@ if all_comments_list:
             ice_tests = generate_ice_score_tests(analysis_results)
             if ice_tests and isinstance(ice_tests, list) and len(ice_tests) > 0:
                 df_ice = pd.DataFrame(ice_tests)
-                st.caption(f"Colunas retornadas: {df_ice.columns.tolist()}")
-                # Rename and fix possible column naming issues
                 if "ICE Score" not in df_ice.columns:
                     for col in df_ice.columns:
                         if col.lower().replace(" ", "") in ["icescore", "ice", "ice_score"]:
@@ -466,4 +472,4 @@ else:
     st.info("Por favor, carregue um arquivo, cole comentários ou insira uma URL para iniciar a análise.")
 
 st.markdown("---")
-st.markdown("Desenvolvido com ❤️ e IA por Pedro Costa")  # Customize se quiser
+st.markdown("Desenvolvido com ❤️ e IA por Pedro Costa")  # Personalize como quiser
