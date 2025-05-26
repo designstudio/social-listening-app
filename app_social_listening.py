@@ -409,24 +409,41 @@ if all_comments_list:
                 st.warning("Não foi possível gerar insights de persona.")
 
         with tab6:
-            st.header("Sugestões de Testes de Growth (ICE Score)")
-            ice_tests = generate_ice_score_tests(analysis_results)
-            if ice_tests:
-                df_ice = pd.DataFrame(ice_tests)
-                if {'Impacto (1-10)', 'Confiança (1-10)', 'Facilidade (1-10)'}.issubset(df_ice.columns):
-                    df_ice['ICE Score'] = (
-                        df_ice['Impacto (1-10)'] + df_ice['Confiança (1-10)'] + df_ice['Facilidade (1-10)']) / 3
-                    df_ice['ICE Score'] = df_ice['ICE Score'].round(2)
-                df_ice = df_ice.sort_values(by='ICE Score', ascending=False)
-                df_ice.index = range(1, len(df_ice) + 1)
-                df_ice.index.name = "Ordem"
-                st.dataframe(df_ice)
-            else:
-                st.warning("Não foi possível gerar sugestões de testes de Growth.")
+    st.header("Sugestões de Testes de Growth (ICE Score)")
+    ice_tests = generate_ice_score_tests(analysis_results)
+    if ice_tests and isinstance(ice_tests, list) and len(ice_tests) > 0:
+        df_ice = pd.DataFrame(ice_tests)
+
+        # Mostre para debugging as colunas que vieram
+        st.caption(f"Colunas retornadas: {df_ice.columns.tolist()}")
+
+        # Tenta renomear se vieram nomes diferentes do esperado
+        if "ICE Score" not in df_ice.columns:
+            # Tenta encontrar por aproximação (lowercase e sem acentos)
+            for col in df_ice.columns:
+                if col.lower().replace(" ", "") in ["icescore", "ice", "ice_score"]:
+                    df_ice.rename(columns={col: "ICE Score"}, inplace=True)
+                if col.lower() == "ordem":
+                    df_ice.rename(columns={col: "Ordem"}, inplace=True)
+        # Calcula ICE Score se não existir
+        if "ICE Score" not in df_ice.columns and {'Impacto (1-10)', 'Confiança (1-10)', 'Facilidade (1-10)'}.issubset(df_ice.columns):
+            df_ice['ICE Score'] = (
+                df_ice['Impacto (1-10)'] + df_ice['Confiança (1-10)'] + df_ice['Facilidade (1-10)']) / 3
+            df_ice['ICE Score'] = df_ice['ICE Score'].round(2)
+        # Ordena se possível
+        if "ICE Score" in df_ice.columns:
+            df_ice = df_ice.sort_values(by='ICE Score', ascending=False)
+        df_ice.index = range(1, len(df_ice) + 1)
+        df_ice.index.name = "Ordem"
+        st.dataframe(df_ice)
+    else:
+        st.warning("Não foi possível gerar sugestões de testes de Growth. Veja a resposta bruta abaixo para debugging:")
+        st.code(json.dumps(ice_tests, indent=2, ensure_ascii=False), language="json")
+
     else:
         st.error("Não foi possível obter resultados da análise. Verifique os logs para mais detalhes.")
 else:
     st.info("Por favor, carregue um arquivo, cole comentários ou insira uma URL para iniciar a análise.")
 
 st.markdown("---")
-st.markdown("Desenvolvido com ❤️ e IA por Pedro Costa")  # Sinta-se livre para customizar!
+st.markdown("Desenvolvido com ❤️ Python e IA por Pedro Costa | Product Marketing & Martech Specialist ")
