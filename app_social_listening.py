@@ -8,8 +8,8 @@ import re
 import matplotlib.pyplot as plt
 import seaborn as sns
 import networkx as nx
-import os
 from wordcloud import WordCloud
+import os
 import google.generativeai as genai
 
 # --- CONFIGURAÇÃO GEMINI ---
@@ -21,7 +21,6 @@ genai.configure(api_key=gemini_api_key)
 model = genai.GenerativeModel('gemini-2.0-flash')
 
 # --- EXTRAÇÃO DE DADOS ---
-
 @st.cache_data(show_spinner=False)
 def extract_text_from_file(file_contents, file_extension):
     text_content_list = []
@@ -74,22 +73,16 @@ def download_youtube_comments(youtube_url):
                     all_comments.append(comment['text'])
                     comment_count += 1
                     if comment_count >= MAX_COMMENTS_LIMIT:
-                        st.info(f"Limite de {MAX_COMMENTS_LIMIT} comentários atingido para o vídeo: {youtube_url}.")
                         break
             except Exception as e:
                 st.error(f"Não foi possível baixar comentários: {e}")
                 return []
-            if not all_comments:
-                st.warning(f"Não foram encontrados comentários para o vídeo: {youtube_url}.")
-                return []
-            st.success(f"Baixados {len(all_comments)} comentários do vídeo.")
             return all_comments
     except Exception as e:
         st.error(f"Erro geral ao baixar comentários: {e}.")
         return []
 
 # --- ANÁLISE COM GEMINI ---
-
 @st.cache_data(show_spinner=True)
 def analyze_text_with_gemini(text_to_analyze):
     if not text_to_analyze.strip():
@@ -146,11 +139,10 @@ Texto para análise:
         if response_text.endswith("```"):
             response_text = response_text[:-len("```")].strip()
         data = json.loads(response_text)
-        # Garante que 'no_sentiment_detected' exista e soma = 100
         if 'no_sentiment_detected' not in data['sentiment']:
             total = data['sentiment'].get('positive', 0) + data['sentiment'].get('neutral', 0) + data['sentiment'].get('negative', 0)
             data['sentiment']['no_sentiment_detected'] = round(100.0 - total, 2)
-        total_sum = data['sentiment']['positive'] + data['sentiment']['neutral'] + data['sentiment']['negative'] + data['sentiment']['no_sentiment_detected']
+        total_sum = sum(data['sentiment'].values())
         if total_sum != 100 and total_sum != 0:
             for key in data['sentiment']:
                 data['sentiment'][key] = round(data['sentiment'][key] / total_sum * 100, 2)
@@ -232,50 +224,78 @@ Exemplo:
         return None
 
 # --- VISUALIZAÇÃO ---
-def plot_sentiment(sentiment_data):
-    if not sentiment_data or sum(sentiment_data.values()) == 0:
-        st.warning("Dados de sentimento insuficientes para plotar.")
-        return
-    labels = list(sentiment_data.keys())
-    sizes = [sentiment_data[key] for key in labels]
-    colors = ['#ff99b0', '#1f2329', '#fe1874', '#cccccc']
-    explode = [0.03 if size == max(sizes) else 0 for size in sizes]
-    fig1, ax1 = plt.subplots(figsize=(8, 8))
-    wedges, texts, autotexts = ax1.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%',
-                                       shadow=True, startangle=90, textprops={'fontsize': 14, 'color': 'black'})
-    ax1.axis('equal')
-    plt.title('Análise de Sentimento Geral', fontsize=16, pad=20)
-    st.pyplot(fig1)
 
-def plot_topics_sentiment(topics_data):
-    if not topics_data:
-        st.warning("Dados de temas insuficientes para plotar.")
-        return
-    df_topics = pd.DataFrame(topics_data)
-    df_topics_melted = df_topics.melt(id_vars='name', var_name='sentiment_type', value_name='count')
-    df_topics_melted = df_topics_melted[df_topics_melted['sentiment_type'] != 'no_sentiment_detected']
-    if df_topics_melted.empty:
-        st.warning("Dados de temas com sentimentos detectados insuficientes para plotar.")
-        return
-    sentiment_colors = {
+def plot_sentiment_chart(sentiment_data):
+    labels_order = ['positive', 'neutral', 'negative', 'no_sentiment_detected']
+    display_labels = ['Positivo', 'Neutro', 'Negativo', 'Não Detectado']
+    colors_for_pie = {
         'positive': '#ff99b0',
         'neutral': '#1f2329',
-        'negative': '#fe1874'
+        'negative': '#fe1874',
+        'no_sentiment_detected': '#cccccc'
     }
-    fig, ax = plt.subplots(figsize=(12, 7))
-    sns.barplot(x='name', y='count', hue='sentiment_type', data=df_topics_melted, palette=sentiment_colors, ax=ax)
-    plt.title('Sentimento por Tema', fontsize=16)
-    plt.xlabel('Tema', fontsize=12)
-    plt.ylabel('Contagem de Comentários', fontsize=12)
-    plt.xticks(rotation=45, ha='right', fontsize=10)
-    plt.yticks(fontsize=10)
-    plt.legend(title='Sentimento', title_fontsize='12', fontsize='10')
+    sizes = [sentiment_data.get(label, 0.0) for label in labels_order]
+    filtered_data = [(display_labels[i], sizes[i], colors_for_pie[labels_order[i]])
+                     for i, size in enumerate(sizes) if size > 0]
+    if not filtered_data:
+        st.warning("Dados insuficientes para gráfico de sentimento.")
+        return
+    filtered_labels, filtered_sizes, filtered_colors = zip(*filtered_data)
+    explode = [0.03] * len(filtered_labels)
+    fig, ax = plt.subplots(figsize=(8, 8))
+    wedges, texts, autotexts = ax.pie(
+        filtered_sizes,
+        explode=explode,
+        labels=filtered_labels,
+        colors=filtered_colors,
+        autopct='%1.1f%%',
+        startangle=90,
+        pctdistance=0.85
+    )
+    for autotext in autotexts:
+        autotext.set_color('#f3f3f3')
+        autotext.set_fontsize(14)
+        autotext.set_fontweight('bold')
+    for text in texts:
+        text.set_color('#1f2329')
+        text.set_fontsize(12)
+    centre_circle = plt.Circle((0,0),0.70,fc='#f3f3f3')
+    fig.gca().add_artist(centre_circle)
+    ax.axis('equal')
+    ax.set_title('1. Análise de Sentimento Geral', pad=20, color='#1f2329')
+    st.pyplot(fig)
+
+def plot_topics_chart(topics_data):
+    if not topics_data:
+        st.warning("Dados de temas insuficientes.")
+        return
+    df_topics = pd.DataFrame(topics_data)
+    df_topics['positive'] = df_topics['positive'].fillna(0).astype(int)
+    df_topics['neutral'] = df_topics['neutral'].fillna(0).astype(int)
+    df_topics['negative'] = df_topics['negative'].fillna(0).astype(int)
+    df_topics['Total'] = df_topics['positive'] + df_topics['neutral'] + df_topics['negative']
+    df_topics = df_topics.sort_values('Total', ascending=True)
+    fig, ax = plt.subplots(figsize=(12, max(6, len(df_topics) * 0.7)))
+    bar_colors = ['#ff99b0', '#1f2329', '#fe1874']
+    df_topics[['positive', 'neutral', 'negative']].plot(
+        kind='barh',
+        stacked=True,
+        color=bar_colors,
+        ax=ax
+    )
+    ax.set_title('2. Temas Mais Citados por Sentimento', color='#1f2329')
+    ax.set_xlabel('Número de Comentários', color='#1f2329')
+    ax.set_ylabel('Tema', color='#1f2329')
+    ax.set_yticklabels(df_topics['name'], color='#1f2329')
+    ax.tick_params(axis='x', colors='#1f2329')
+    ax.tick_params(axis='y', colors='#1f2329')
+    ax.legend(['Positivo', 'Neutro', 'Negativo'], loc='lower right', frameon=False, labelcolor='#1f2329')
     plt.tight_layout()
     st.pyplot(fig)
 
 def plot_word_cloud(term_clusters_data):
     if not term_clusters_data:
-        st.warning("Dados de agrupamento de termos insuficientes para plotar.")
+        st.warning("Dados de termos insuficientes para nuvem de palavras.")
         return
     def color_func(word, font_size, position, orientation, random_state=None, **kwargs):
         import random
@@ -296,81 +316,65 @@ def plot_word_cloud(term_clusters_data):
     plt.title('3. Agrupamento de Termos (Nuvem de Palavras)', pad=20, fontsize=18)
     st.pyplot(fig)
 
-def plot_topic_relations(topic_relations_data, topics_data):
+def plot_topic_relations_chart(topic_relations_data):
     if not topic_relations_data:
-        st.warning("Dados de relação entre temas insuficientes para plotar o grafo.")
+        st.warning("Dados insuficientes para grafo de relação entre temas.")
         return
     G = nx.Graph()
-    for topic in topics_data:
-        G.add_node(topic['name'])
     for rel in topic_relations_data:
-        if rel['source'] in G and rel['target'] in G:
-            G.add_edge(rel['source'], rel['target'], description=rel['description'])
+        source = rel.get('source')
+        target = rel.get('target')
+        description = rel.get('description')
+        if source and target:
+            G.add_edge(source, target, description=description)
     if not G.edges():
-        st.warning("Não há arestas suficientes para plotar um grafo de rede significativo.")
+        st.warning("Nenhuma relação válida encontrada para construir o grafo de rede.")
         return
     fig, ax = plt.subplots(figsize=(12, 10))
-    pos = nx.spring_layout(G, k=0.8, iterations=50, seed=42)
+    pos = nx.spring_layout(G, k=0.7, iterations=50, seed=42)
     node_colors = ['#fe1874' for _ in G.nodes()]
-    nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=2000, alpha=0.9, ax=ax)
-    nx.draw_networkx_edges(G, pos, width=1.5, alpha=0.7, edge_color='#1f2329', ax=ax)
-    nx.draw_networkx_labels(G, pos, font_size=10, font_weight='bold', ax=ax)
-    ax.set_title("Relação entre Temas", fontsize=18, pad=20)
-    ax.axis('off')
+    nx.draw_networkx_nodes(G, pos, node_size=3000, node_color=node_colors, alpha=0.9, ax=ax)
+    nx.draw_networkx_edges(G, pos, width=1.5, edge_color='#1f2329', alpha=0.6, ax=ax)
+    nx.draw_networkx_labels(G, pos, font_size=10, font_weight='bold', font_color='#1f2329', ax=ax)
+    ax.set_title('4. Relação Entre Temas (Grafo de Rede)', pad=20, color='#1f2329')
+    plt.axis('off')
     plt.tight_layout()
     st.pyplot(fig)
 
 # --- APP STREAMLIT ---
-
 st.set_page_config(layout="wide", page_title="Social Listening Tool + AI")
-
 st.title("🗣️ Social Listening Tool + AI")
 st.markdown("---")
 
-st.sidebar.header("Fonte dos Dados")
-data_source_option = st.sidebar.radio(
-    "Escolha a fonte dos comentários:",
-    ("Upload de Arquivo (CSV, Excel, Word)", "URL de Vídeo do YouTube")
-)
+st.markdown("Carregue uma base de comentários (.csv, .xls, .xlsx, .doc, .docx), uma URL de vídeo do YouTube, ou cole comentários no campo abaixo. **Todos os gráficos e análises serão gerados automaticamente.**")
 
 all_comments_list = []
 
-if data_source_option == "Upload de Arquivo (CSV, Excel, Word)":
-    uploaded_file = st.sidebar.file_uploader(
-        "Faça o upload do seu arquivo de comentários (.csv, .xls, .xlsx, .doc, .docx)",
-        type=["csv", "xls", "xlsx", "doc", "docx"]
+col1, col2 = st.columns(2)
+with col1:
+    uploaded_file = st.file_uploader(
+        "Faça upload do arquivo de comentários (.csv, .xls, .xlsx, .doc, .docx):",
+        type=["csv", "xls", "xlsx", "doc", "docx"],
+        key="fileuploader"
     )
     if uploaded_file is not None:
         file_extension = os.path.splitext(uploaded_file.name)[1].lower()
         file_contents = uploaded_file.read()
         all_comments_list = extract_text_from_file(file_contents, file_extension)
-        if all_comments_list:
-            st.sidebar.success(f"Arquivo '{uploaded_file.name}' carregado. {len(all_comments_list)} comentários extraídos.")
-            st.sidebar.write("Amostra dos comentários:")
-            for i, comment in enumerate(all_comments_list[:5]):
-                st.sidebar.text(f"- {comment[:70]}...")
-        else:
-            st.sidebar.warning("Nenhum comentário válido foi extraído do arquivo. Verifique o formato ou a coluna 'comentario'.")
-elif data_source_option == "URL de Vídeo do YouTube":
-    youtube_url_input = st.sidebar.text_input("Insira a URL do vídeo do YouTube:")
-    if youtube_url_input:
-        all_comments_list = download_youtube_comments(youtube_url_input)
-        if all_comments_list:
-            st.sidebar.success(f"Comentários baixados com sucesso. Total: {len(all_comments_list)}.")
-            st.sidebar.write("Amostra dos comentários:")
-            for i, comment in enumerate(all_comments_list[:5]):
-                st.sidebar.text(f"- {comment[:70]}...")
-        else:
-            st.sidebar.warning("Não foi possível baixar comentários. Verifique a URL ou privacidade do vídeo.")
 
-# CAMPO DE TEXTO MANUAL EXTRA
-with st.expander("Ou cole comentários manualmente (um por linha):"):
-    manual_text = st.text_area("Cole comentários aqui:", height=150)
-    if manual_text.strip():
-        manual_comments = [l for l in manual_text.split("\n") if l.strip()]
-        if manual_comments:
-            all_comments_list = manual_comments
-            st.success(f"{len(manual_comments)} comentários colados.")
+with col2:
+    youtube_url_input = st.text_input("Ou insira uma URL de vídeo do YouTube:")
+    if youtube_url_input:
+        yt_comments = download_youtube_comments(youtube_url_input.strip())
+        if yt_comments:
+            all_comments_list = yt_comments
+
+manual_text = st.text_area("Ou cole comentários (um por linha):")
+if manual_text and not all_comments_list:
+    manual_comments = [l for l in manual_text.split("\n") if l.strip()]
+    if manual_comments:
+        all_comments_list = manual_comments
+        st.success(f"{len(manual_comments)} comentários colados.")
 
 if all_comments_list:
     st.success("Comentários carregados! Pronto para analisar.")
@@ -388,16 +392,16 @@ if all_comments_list:
         ])
         with tabs[0]:
             st.subheader("Sentimento Geral")
-            plot_sentiment(analysis_results.get('sentiment', {}))
+            plot_sentiment_chart(analysis_results.get('sentiment', {}))
         with tabs[1]:
             st.subheader("Temas mais Citados com Sentimento")
-            plot_topics_sentiment(analysis_results.get('topics', []))
+            plot_topics_chart(analysis_results.get('topics', []))
         with tabs[2]:
             st.subheader("Agrupamento de Termos/Nuvem de Palavras")
             plot_word_cloud(analysis_results.get('term_clusters', {}))
         with tabs[3]:
             st.subheader("Relação entre Temas (Grafo de Rede)")
-            plot_topic_relations(analysis_results.get('topic_relations', []), analysis_results.get('topics', []))
+            plot_topic_relations_chart(analysis_results.get('topic_relations', []))
         with tabs[4]:
             st.subheader("Análise Qualitativa")
             with st.spinner("Gerando análise qualitativa..."):
