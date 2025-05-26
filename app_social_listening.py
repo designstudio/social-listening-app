@@ -88,8 +88,7 @@ def download_youtube_comments(youtube_url):
 # ---- CLEAN JSON ----
 def clean_json_response(response_text):
     cleaned = re.sub(r"^```.*?\n|\n```$", "", response_text.strip(), flags=re.DOTALL).strip()
-    # Corrige aspas e vírgulas fora do lugar (robustez para Gemini)
-    cleaned = cleaned.replace("\'", "\"")
+    cleaned = cleaned.replace("'", '\"')
     cleaned = re.sub(r',\s*([\]}])', r'\1', cleaned)
     return cleaned
 
@@ -102,12 +101,10 @@ def analyze_text_with_gemini(text_to_analyze):
             "term_clusters": {},
             "topic_relations": []
         }
-
     prompt = f"""
 Analise o texto de comentários de redes sociais abaixo de forma estritamente objetiva, factual e consistente.
 Extraia as informações solicitadas. Calcule as porcentagens e contagens EXATAS com base no total de comentários relevantes.
 Retorne apenas o JSON, sem texto antes ou depois.
-
 Estrutura:
 {{
   "sentiment": {{
@@ -273,15 +270,27 @@ def plot_word_cloud(term_clusters_data):
         st.warning("Dados de termos vazios.")
         return
     def color_func(word, font_size, position, orientation, random_state=None, **kwargs):
-        colors = [CUSTOM_COLORS['primary'], CUSTOM_COLORS['secondary']]
-        return random.choice(colors)
-    wordcloud = WordCloud(width=1000, height=600, background_color=CUSTOM_COLORS['background'],
-                          color_func=color_func, min_font_size=10, max_words=200,
-                          contour_width=0, collocations=False).generate_from_frequencies(term_clusters_data)
-    fig = plt.figure(figsize=(10, 8))
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.axis('off')
-    plt.title('3. Agrupamento de Termos (Nuvem de Palavras)', pad=20, color=CUSTOM_COLORS['secondary'])
+        cores = [CUSTOM_COLORS['primary'], CUSTOM_COLORS['secondary']]
+        return random.choice(cores)
+    wordcloud = WordCloud(
+        width=800,
+        height=400,
+        background_color=CUSTOM_COLORS['background'],
+        color_func=color_func,
+        min_font_size=24,
+        max_font_size=90,
+        max_words=30,
+        prefer_horizontal=1.0,
+        scale=2,
+        contour_width=0,
+        collocations=False,
+        font_path=None
+    ).generate_from_frequencies(term_clusters_data)
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.imshow(wordcloud, interpolation='bilinear')
+    ax.axis('off')
+    plt.title('3. Agrupamento de Termos (Nuvem de Palavras)', fontsize=20, pad=12, color=CUSTOM_COLORS['secondary'])
+    plt.tight_layout()
     st.pyplot(fig)
 
 def plot_topic_relations_chart(topic_relations_data):
@@ -346,32 +355,78 @@ if all_comments_list:
     MAX_TEXT_LENGTH_FOR_GEMINI = 100000
     combined_comments = "\n".join(all_comments_list)
     if len(combined_comments) > MAX_TEXT_LENGTH_FOR_GEMINI:
-        st.warning(f"O número de caracteres dos comentários ({len(combined_comments)}) excede o limite recomendado ({MAX_TEXT_LENGTH_FOR_GEMINI}). Análise será feita em amostra truncada.")
+        st.warning(f"O número de caracteres total dos comentários ({len(combined_comments)}) excede o limite recomendado para a API ({MAX_TEXT_LENGTH_FOR_GEMINI}). A análise será realizada com uma amostra truncada dos comentários.")
         combined_comments = combined_comments[:MAX_TEXT_LENGTH_FOR_GEMINI] + "..."
-    # Usa o session_state para não re-analisar repetidamente o mesmo texto
+
     if 'analysis_results' not in st.session_state or st.session_state.get('last_combined_comments') != combined_comments:
         st.session_state.analysis_results = analyze_text_with_gemini(combined_comments)
         st.session_state.last_combined_comments = combined_comments
         st.session_state.original_text_sample = combined_comments
+
     analysis_results = st.session_state.analysis_results
+
     if analysis_results:
+        st.success("Análise concluída!")
+
         tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
             "📊 Sentimento", "💡 Temas", "☁️ Termos-Chave",
             "🔗 Relações entre Temas", "📝 Análise Qualitativa", "🚀 Testes de Growth (ICE Score)"
         ])
+
         with tab1:
             st.header("Análise de Sentimento Geral")
             plot_sentiment_chart(analysis_results.get('sentiment', {}))
             st.json(analysis_results.get('sentiment', {}))
+
         with tab2:
             st.header("Temas Mais Citados")
             plot_topics_chart(analysis_results.get('topics', []))
             st.json(analysis_results.get('topics', []))
+
         with tab3:
             st.header("Agrupamento de Termos/Nuvem de Palavras")
             plot_word_cloud(analysis_results.get('term_clusters', {}))
             st.json(analysis_results.get('term_clusters', {}))
+
         with tab4:
             st.header("Relação entre Temas")
             plot_topic_relations_chart(analysis_results.get('topic_relations', []))
-           
+            st.json(analysis_results.get('topic_relations', []))
+
+        with tab5:
+            st.header("Análise Qualitativa Detalhada")
+            qualitative_analysis = generate_qualitative_analysis(analysis_results, st.session_state.original_text_sample)
+            if qualitative_analysis:
+                st.write(qualitative_analysis)
+            else:
+                st.warning("A análise qualitativa não pôde ser gerada.")
+
+            st.header("Insights de Persona Sintética")
+            persona_insights = generate_persona_insights(analysis_results, st.session_state.original_text_sample)
+            if persona_insights:
+                st.write(persona_insights)
+            else:
+                st.warning("Não foi possível gerar insights de persona.")
+
+        with tab6:
+            st.header("Sugestões de Testes de Growth (ICE Score)")
+            ice_tests = generate_ice_score_tests(analysis_results)
+            if ice_tests:
+                df_ice = pd.DataFrame(ice_tests)
+                if {'Impacto (1-10)', 'Confiança (1-10)', 'Facilidade (1-10)'}.issubset(df_ice.columns):
+                    df_ice['ICE Score'] = (
+                        df_ice['Impacto (1-10)'] + df_ice['Confiança (1-10)'] + df_ice['Facilidade (1-10)']) / 3
+                    df_ice['ICE Score'] = df_ice['ICE Score'].round(2)
+                df_ice = df_ice.sort_values(by='ICE Score', ascending=False)
+                df_ice.index = range(1, len(df_ice) + 1)
+                df_ice.index.name = "Ordem"
+                st.dataframe(df_ice)
+            else:
+                st.warning("Não foi possível gerar sugestões de testes de Growth.")
+    else:
+        st.error("Não foi possível obter resultados da análise. Verifique os logs para mais detalhes.")
+else:
+    st.info("Por favor, carregue um arquivo, cole comentários ou insira uma URL para iniciar a análise.")
+
+st.markdown("---")
+st.markdown("Desenvolvido com ❤️ e IA por Pedro Costa")  # Sinta-se livre para customizar!
