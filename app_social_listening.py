@@ -169,8 +169,7 @@ O JSON deve ter a seguinte estrutura (atenção aos tipos de dados e nomes das c
     }}
   ]
 }}
-
-    Texto para análise:
+Texto para análise:
 "{text_to_analyze}"
 """
 
@@ -205,8 +204,7 @@ except json.JSONDecodeError as e:
 except Exception as e:
     st.error(f"Erro inesperado ao analisar com Gemini: {e}")
     return None
-
-    @st.cache_data(show_spinner=True)
+@st.cache_data(show_spinner=True)
 def generate_qualitative_analysis(analysis_results):
 sentiment = analysis_results.get('sentiment', {})
 topics = analysis_results.get('topics', [])
@@ -220,7 +218,6 @@ term_clusters_json = json.dumps(term_clusters, ensure_ascii=False)
 topic_relations_json = json.dumps(topic_relations, ensure_ascii=False)
 
 prompt = f"""
-
 Com base na análise de social listening dos comentários de redes sociais fornecidos, atue como um especialista em Marketing de Produto, Social Listening e Data Analysis. Redija uma análise qualitativa abrangente em até 4 parágrafos, focando nos aprendizados e insights estratégicos.
 
 Considere as seguintes informações:
@@ -265,7 +262,6 @@ topics_json = json.dumps(topics, ensure_ascii=False)
 term_clusters_json = json.dumps(term_clusters, ensure_ascii=False)
 
 combined_context = f"""
-
 Comentários originais (amostra): {original_text_display}
 Resultados da análise:
 
@@ -294,13 +290,14 @@ Use até 3-4 parágrafos para descrever essa persona e seus insights acionáveis
 Contexto da análise:
 {combined_context}
 """
-                                        try:
+
+try:
     response = model.generate_content(persona_prompt)
     return response.text.strip()
 except Exception as e:
     st.error(f"Erro ao gerar insights para personas sintéticas: {e}")
-
-    @st.cache_data(show_spinner=True)
+    return "Não foi possível gerar insights para personas sintéticas."
+@st.cache_data(show_spinner=True)
 def generate_ice_score_tests(analysis_results):
 sentiment = analysis_results.get('sentiment', {})
 topics = analysis_results.get('topics', [])
@@ -314,8 +311,7 @@ term_clusters_json = json.dumps(term_clusters, ensure_ascii=False)
 topic_relations_json = json.dumps(topic_relations, ensure_ascii=False)
 
 prompt = f"""
-
-    Com base na análise de social listening fornecida, atue como um Growth Hacker experiente.
+Com base na análise de social listening fornecida, atue como um Growth Hacker experiente.
 Sugira EXATAMENTE 10 testes de Growth priorizados usando a metodologia ICE Score (Impacto, Confiança, Facilidade).
 Para cada teste, identifique UMA ÚNICA VARIÁVEL de alavancagem principal entre: "Canal", "Segmentação", "Formato", "Criativo" ou "Copy/Argumento".
 
@@ -337,6 +333,8 @@ Agrupamento de Termos: {term_clusters_json}
 Relação entre Temas: {topic_relations_json}
 Exemplo da estrutura JSON de um item da lista:
 
+JSON
+
 [
   {{
     "Ordem": 1,
@@ -349,8 +347,8 @@ Exemplo da estrutura JSON de um item da lista:
     "ICE Score": 8.00
   }}
 ]
-
 """
+
 try:
     response = model.generate_content(prompt)
     response_text = response.text.strip()
@@ -369,11 +367,12 @@ except json.JSONDecodeError as e:
 except Exception as e:
     st.error(f"Erro inesperado ao gerar testes de Growth com ICE Score: {e}")
     return None
-    --- Funções de Visualização ---
+--- Funções de Visualização ---
 def plot_sentiment(sentiment_data):
 if not sentiment_data or sum(sentiment_data.values()) == 0:
 st.warning("Dados de sentimento insuficientes para plotar.")
 return
+
 labels = list(sentiment_data.keys())
 sizes = [sentiment_data[key] for key in labels]
 colors = ['#4CAF50', '#FFC107', '#F44336', '#9E9E9E'] # Positivo, Neutro, Negativo, Sem Sentimento
@@ -392,6 +391,7 @@ def plot_topics_sentiment(topics_data):
 if not topics_data:
 st.warning("Dados de temas insuficientes para plotar.")
 return
+
 df_topics = pd.DataFrame(topics_data)
 df_topics_melted = df_topics.melt(id_vars='name', var_name='sentiment_type', value_name='count')
 
@@ -419,7 +419,6 @@ plt.yticks(fontsize=10)
 plt.legend(title='Sentimento', title_fontsize='12', fontsize='10')
 plt.tight_layout()
 st.pyplot(fig)
-
 def plot_term_clusters(term_clusters_data):
 if not term_clusters_data:
 st.warning("Dados de agrupamento de termos insuficientes para plotar.")
@@ -445,7 +444,6 @@ plt.xticks(fontsize=10)
 plt.yticks(fontsize=10)
 plt.tight_layout()
 st.pyplot(fig)
-
 def plot_topic_relations(topic_relations_data, topics_data):
 if not topic_relations_data:
 st.warning("Dados de relação entre temas insuficientes para plotar o grafo.")
@@ -500,7 +498,6 @@ ax.set_title("Relação entre Temas", fontsize=18, pad=20)
 ax.axis('off')
 plt.tight_layout()
 st.pyplot(fig)
-
 --- Aplicação Streamlit ---
 st.set_page_config(layout="wide", page_title="Análise de Social Listening com Gemini")
 
@@ -628,7 +625,4 @@ else:
 st.info("Por favor, carregue um arquivo ou insira uma URL de vídeo do YouTube para iniciar a análise.")
 
 st.markdown("---")
-st.markdown("Desenvolvido com ❤️ e IA por [Pedro Costa]") # Opcional: Adicione seu nome/empresa
-
-
----                                
+st.markdown("Desenvolvido com ❤️ e IA por [Seu Nome/Empresa]") # Opcional: Adicione seu nome/empresa
