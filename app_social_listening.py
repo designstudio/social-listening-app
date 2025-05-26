@@ -12,7 +12,7 @@ from wordcloud import WordCloud
 import os
 import google.generativeai as genai
 
-# --- CONFIG GEMINI ---
+# --- CONFIGURAÇÃO GEMINI ---
 gemini_api_key = st.secrets.get("GOOGLE_API_KEY")
 if not gemini_api_key:
     st.error("A chave da API do Google Gemini não foi encontrada. Configure-a no 'secrets.toml' ou como variável de ambiente GOOGLE_API_KEY.")
@@ -224,6 +224,7 @@ Exemplo:
         return None
 
 # --- VISUALIZAÇÃO ---
+
 def plot_sentiment_chart(sentiment_data):
     labels_order = ['positive', 'neutral', 'negative', 'no_sentiment_detected']
     display_labels = ['Positivo', 'Neutro', 'Negativo', 'Não Detectado']
@@ -241,7 +242,7 @@ def plot_sentiment_chart(sentiment_data):
         return
     filtered_labels, filtered_sizes, filtered_colors = zip(*filtered_data)
     explode = [0.03] * len(filtered_labels)
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=(5.6, 5.6))  # 8 x 0.7 = 5.6
     wedges, texts, autotexts = ax.pie(
         filtered_sizes,
         explode=explode,
@@ -253,11 +254,11 @@ def plot_sentiment_chart(sentiment_data):
     )
     for autotext in autotexts:
         autotext.set_color('#f3f3f3')
-        autotext.set_fontsize(14)
+        autotext.set_fontsize(10)
         autotext.set_fontweight('bold')
     for text in texts:
         text.set_color('#1f2329')
-        text.set_fontsize(12)
+        text.set_fontsize(8)
     centre_circle = plt.Circle((0,0),0.70,fc='#f3f3f3')
     fig.gca().add_artist(centre_circle)
     ax.axis('equal')
@@ -274,7 +275,7 @@ def plot_topics_chart(topics_data):
     df_topics['negative'] = df_topics['negative'].fillna(0).astype(int)
     df_topics['Total'] = df_topics['positive'] + df_topics['neutral'] + df_topics['negative']
     df_topics = df_topics.sort_values('Total', ascending=True)
-    fig, ax = plt.subplots(figsize=(12, max(6, len(df_topics) * 0.7)))
+    fig, ax = plt.subplots(figsize=(8.4, max(4.2, len(df_topics) * 0.49)))  # 12x0.7=8.4, 6x0.7=4.2
     bar_colors = ['#ff99b0', '#1f2329', '#fe1874']
     df_topics[['positive', 'neutral', 'negative']].plot(
         kind='barh',
@@ -300,19 +301,19 @@ def plot_word_cloud(term_clusters_data):
         import random
         return '#fe1874' if random_state and random_state.randint(0, 2) == 0 else '#1f2329'
     wordcloud = WordCloud(
-        width=1000,
-        height=600,
+        width=700,   # 1000 x 0.7
+        height=420,  # 600 x 0.7
         background_color='#f3f3f3',
         color_func=color_func,
-        min_font_size=16,
+        min_font_size=11, # 16 x 0.7 ~ 11
         max_words=60,
         prefer_horizontal=0.8,
         collocations=False
     ).generate_from_frequencies(term_clusters_data)
-    fig = plt.figure(figsize=(12, 8))
+    fig = plt.figure(figsize=(8.4, 5.6))  # 12x0.7=8.4, 8x0.7=5.6
     plt.imshow(wordcloud, interpolation='bilinear')
     plt.axis('off')
-    plt.title('3. Agrupamento de Termos (Nuvem de Palavras)', pad=20, fontsize=18)
+    plt.title('3. Agrupamento de Termos (Nuvem de Palavras)', pad=20, fontsize=12)
     st.pyplot(fig)
 
 def plot_topic_relations_chart(topic_relations_data):
@@ -329,12 +330,12 @@ def plot_topic_relations_chart(topic_relations_data):
     if not G.edges():
         st.warning("Nenhuma relação válida encontrada para construir o grafo de rede.")
         return
-    fig, ax = plt.subplots(figsize=(12, 10))
+    fig, ax = plt.subplots(figsize=(8.4, 7))  # 12 x 0.7 = 8.4, 10 x 0.7 = 7
     pos = nx.spring_layout(G, k=0.7, iterations=50, seed=42)
     node_colors = ['#fe1874' for _ in G.nodes()]
-    nx.draw_networkx_nodes(G, pos, node_size=3000, node_color=node_colors, alpha=0.9, ax=ax)
-    nx.draw_networkx_edges(G, pos, width=1.5, edge_color='#1f2329', alpha=0.6, ax=ax)
-    nx.draw_networkx_labels(G, pos, font_size=10, font_weight='bold', font_color='#1f2329', ax=ax)
+    nx.draw_networkx_nodes(G, pos, node_size=2100, node_color=node_colors, alpha=0.9, ax=ax)  # 3000x0.7
+    nx.draw_networkx_edges(G, pos, width=1.0, edge_color='#1f2329', alpha=0.6, ax=ax)  # width=1.5->1
+    nx.draw_networkx_labels(G, pos, font_size=7, font_weight='bold', font_color='#1f2329', ax=ax)
     ax.set_title('4. Relação Entre Temas (Grafo de Rede)', pad=20, color='#1f2329')
     plt.axis('off')
     plt.tight_layout()
@@ -344,31 +345,36 @@ def plot_topic_relations_chart(topic_relations_data):
 st.set_page_config(layout="wide", page_title="Social Listening Tool + AI")
 st.title("🗣️ Social Listening Tool + AI")
 st.markdown("---")
-st.markdown("Carregue uma base de comentários (.csv, .xls, .xlsx, .doc, .docx), uma URL de vídeo do YouTube, ou cole comentários no campo abaixo. Todos os gráficos e análises serão gerados automaticamente.")
+
+st.markdown("Carregue uma base de comentários (.csv, .xls, .xlsx, .doc, .docx), uma URL de vídeo do YouTube, ou cole comentários no campo abaixo. **Todos os gráficos e análises serão gerados automaticamente.**")
 
 all_comments_list = []
 
-uploaded_file = st.file_uploader(
-    "Faça upload do arquivo de comentários (.csv, .xls, .xlsx, .doc, .docx):",
-    type=["csv", "xls", "xlsx", "doc", "docx"],
-    key="fileuploader"
-)
-if uploaded_file is not None:
-    file_extension = os.path.splitext(uploaded_file.name)[1].lower()
-    file_contents = uploaded_file.read()
-    all_comments_list = extract_text_from_file(file_contents, file_extension)
+col1, col2 = st.columns(2)
+with col1:
+    uploaded_file = st.file_uploader(
+        "Faça upload do arquivo de comentários (.csv, .xls, .xlsx, .doc, .docx):",
+        type=["csv", "xls", "xlsx", "doc", "docx"],
+        key="fileuploader"
+    )
+    if uploaded_file is not None:
+        file_extension = os.path.splitext(uploaded_file.name)[1].lower()
+        file_contents = uploaded_file.read()
+        all_comments_list = extract_text_from_file(file_contents, file_extension)
 
-youtube_url_input = st.text_input("Ou insira uma URL de vídeo do YouTube:")
-if youtube_url_input and not all_comments_list:
-    yt_comments = download_youtube_comments(youtube_url_input.strip())
-    if yt_comments:
-        all_comments_list = yt_comments
+with col2:
+    youtube_url_input = st.text_input("Ou insira uma URL de vídeo do YouTube:")
+    if youtube_url_input:
+        yt_comments = download_youtube_comments(youtube_url_input.strip())
+        if yt_comments:
+            all_comments_list = yt_comments
 
 manual_text = st.text_area("Ou cole comentários (um por linha):")
 if manual_text and not all_comments_list:
     manual_comments = [l for l in manual_text.split("\n") if l.strip()]
     if manual_comments:
         all_comments_list = manual_comments
+        st.success(f"{len(manual_comments)} comentários colados.")
 
 if all_comments_list:
     st.success("Comentários carregados! Pronto para analisar.")
@@ -427,7 +433,6 @@ if all_comments_list:
         st.error("Não foi possível gerar a análise com Gemini. Reveja os dados e tente novamente.")
 else:
     st.info("Faça o upload de comentários, cole manualmente ou insira uma URL do YouTube para iniciar a análise.")
-
 
 
 st.markdown("---")
