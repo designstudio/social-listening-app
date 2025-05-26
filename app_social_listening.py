@@ -131,50 +131,50 @@ def analyze_text_with_gemini(text_to_analyze):
         }
 
     prompt = f"""
-    Analise o texto de comentários de redes sociais abaixo de forma **estritamente objetiva, factual e consistente**.
-    Extraia as informações solicitadas. **Calcule as porcentagens e contagens EXATAS** com base no total de comentários relevantes.
+Analise o texto de comentários de redes sociais abaixo de forma **estritamente objetiva, factual e consistente**.
+Extraia as informações solicitadas. **Calcule as porcentagens e contagens EXATAS** com base no total de comentários relevantes.
 
-    Forneça as seguintes informações em formato JSON, exatamente como a estrutura definida. **Não inclua nenhum texto adicional antes ou depois do JSON.**
+Forneça as seguintes informações em formato JSON, exatamente como a estrutura definida. **Não inclua nenhum texto adicional antes ou depois do JSON.**
 
-    1.  **Sentimento Geral:** A porcentagem de comentários classificados como 'Positivo', 'Neutro', 'Negativo' e 'Sem Sentimento Detectado'. As porcentagens devem somar 100%.
-    2.  **Temas Mais Citados:** Uma lista dos 5 a 10 temas PRINCIPAIS, RELEVANTES e DISTINTOS discutidos nos comentários. Para cada tema, forneça a contagem EXATA de comentários Positivos, Neutros e Negativos relacionados a ele. **Seja específico e conciso nos nomes dos temas** (ex: "Aposentadoria para MEI's", "Emissão de Notas Fiscais", "Regularização CNPJ"). **Evite temas muito genéricos** e garanta que sejam mutuamente exclusivos quando possível.
-    3.  **Agrupamento de Termos/Nuvem de Palavras:** Uma lista dos 10 a 20 termos ou palavras-chave **mais frequentes e significativos**. Para cada termo, forneça sua frequência (contagem de ocorrências). **Priorize substantivos, verbos ou adjetivos que realmente representem o conteúdo**. **NÃO inclua termos como 'positivo', 'negativo', 'neutro' ou palavras de parada comuns** que não adicionam valor temático (ex: "o", "a", "de", "e", "que"). Garanta uma boa VARIEDADE de termos.
-    4.  **Relação entre Temas:** Identifique pelo menos 3 a 5 pares de temas que frequentemente aparecem juntos nos comentários, indicando uma **relação clara e lógica**. Forneça uma breve e direta descrição da relação.
+1.  **Sentimento Geral:** A porcentagem de comentários classificados como 'Positivo', 'Neutro', 'Negativo' e 'Sem Sentimento Detectado'. As porcentagens devem somar 100%.
+2.  **Temas Mais Citados:** Uma lista dos 5 a 10 temas PRINCIPAIS, RELEVANTES e DISTINTOS discutidos nos comentários. Para cada tema, forneça a contagem EXATA de comentários Positivos, Neutros e Negativos relacionados a ele. **Seja específico e conciso nos nomes dos temas** (ex: "Aposentadoria para MEI's", "Emissão de Notas Fiscais", "Regularização CNPJ"). **Evite temas muito genéricos** e garanta que sejam mutuamente exclusivos quando possível.
+3.  **Agrupamento de Termos/Nuvem de Palavras:** Uma lista dos 10 a 20 termos ou palavras-chave **mais frequentes e significativos**. Para cada termo, forneça sua frequência (contagem de ocorrências). **Priorize substantivos, verbos ou adjetivos que realmente representem o conteúdo**. **NÃO inclua termos como 'positivo', 'negativo', 'neutro' ou palavras de parada comuns** que não adicionam valor temático (ex: "o", "a", "de", "e", "que"). Garanta uma boa VARIEDADE de termos.
+4.  **Relação entre Temas:** Identifique pelo menos 3 a 5 pares de temas que frequentemente aparecem juntos nos comentários, indicando uma **relação clara e lógica**. Forneça uma breve e direta descrição da relação.
 
-    O JSON deve ter a seguinte estrutura (atenção aos tipos de dados e nomes das chaves):
-    ```json
+O JSON deve ter a seguinte estrutura (atenção aos tipos de dados e nomes das chaves):
+```json
+{{
+  "sentiment": {{
+    "positive": float,
+    "neutral": float,
+    "negative": float,
+    "no_sentiment_detected": float
+  }},
+  "topics": [
     {{
-      "sentiment": {{
-        "positive": float,
-        "neutral": float,
-        "negative": float,
-        "no_sentiment_detected": float
-      }},
-      "topics": [
-        {{
-          "name": "Nome do Tema",
-          "positive": int,
-          "neutral": int,
-          "negative": int
-        }}
-      ],
-      "term_clusters": {{
-        "termo1": int,
-        "termo2": int
-      }},
-      "topic_relations": [
-        {{
-          "source": "Tema A",
-          "target": "Tema B",
-          "description": "Breve descrição da relação"
-        }}
-      ]
+      "name": "Nome do Tema",
+      "positive": int,
+      "neutral": int,
+      "negative": int
     }}
+  ],
+  "term_clusters": {{
+    "termo1": int,
+    "termo2": int
+  }},
+  "topic_relations": [
+    {{
+      "source": "Tema A",
+      "target": "Tema B",
+      "description": "Breve descrição da relação"
+    }}
+  ]
+}}
     """
 
     Texto para análise:
     "{text_to_analyze}"
-    """"
+    """
 
     try:
         response = model.generate_content(prompt)
@@ -604,4 +604,4 @@ else:
     st.info("Por favor, carregue um arquivo ou insira uma URL de vídeo do YouTube para iniciar a análise.")
 
 st.markdown("---")
-st.markdown("Desenvolvido com ❤️ e IA por [Seu Nome/Empresa]") # Opcional: Adicione seu nome/empresa
+st.markdown("Desenvolvido com ❤️ e IA por [Pedro Costa | Product Marketing & Martech Specialist]") 
