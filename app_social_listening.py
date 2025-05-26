@@ -21,7 +21,7 @@ if not gemini_api_key:
     st.stop()
 
 genai.configure(api_key=gemini_api_key)
-MODEL_NAME = "gemini-2.0-flash"
+MODEL_NAME = "gemini-2.0-flash"    # Usando o Gemini 2.0 Flash
 model = genai.GenerativeModel(MODEL_NAME)
 
 # ---- PALETA ----
@@ -189,12 +189,38 @@ def generate_ice_score_tests(analysis_results):
     prompt = f"""
 Com base na análise de social listening fornecida, sugira EXATAMENTE 10 testes de Growth priorizados usando ICE Score (Impacto, Confiança, Facilidade).
 Para cada teste, informe uma variável principal de alavancagem: "Canal", "Segmentação", "Formato", "Criativo" ou "Copy/Argumento".
-Retorne apenas JSON, ordenado por ICE Score decrescente.
+Retorne um array JSON PURO (começando em [ e terminando em ]), sem texto antes ou depois, sem comentários, sem vírgulas extras. Exemplo:
+[
+  {{
+    "Ordem": 1,
+    "Nome do Teste": "Teste de Criativo para Instagram",
+    "Descrição do Teste": "Testar diferentes imagens no Instagram Ads...",
+    "Variável de Alavancagem": "Criativo",
+    "Impacto (1-10)": 9,
+    "Confiança (1-10)": 8,
+    "Facilidade (1-10)": 7,
+    "ICE Score": 8.00
+  }}
+]
     """
     try:
         response = model.generate_content(prompt)
         response_text = clean_json_response(response.text)
-        data = json.loads(response_text)
+        try:
+            data = json.loads(response_text)
+        except json.JSONDecodeError as e:
+            # Tenta corrigir pequenas falhas comuns
+            response_text_fixed = response_text.strip()
+            if not response_text_fixed.endswith(']'):
+                response_text_fixed += ']'
+            response_text_fixed = response_text_fixed.replace('\n', '')
+            response_text_fixed = re.sub(r',\s*([\]}])', r'\1', response_text_fixed)
+            try:
+                data = json.loads(response_text_fixed)
+            except Exception as e2:
+                st.error(f"Erro ao converter JSON do Gemini: {e2}")
+                st.code(response_text, language="json")
+                return None
         return data
     except Exception as e:
         st.error(f"Erro ao gerar ICE Score: {e}")
