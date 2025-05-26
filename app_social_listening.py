@@ -231,7 +231,7 @@ def generate_qualitative_analysis(analysis_results):
     4.  Identificar oportunidades ou desafios emergentes a partir das relações entre temas.
     5.  Oferecer insights acionáveis para estratégias de produto, comunicação ou atendimento ao cliente.
     6.  Ser concisa e focada nos aprendizados mais importantes.
-    """"
+    """
 
     try:
         response = model.generate_content(prompt)
