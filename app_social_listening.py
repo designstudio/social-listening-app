@@ -242,7 +242,7 @@ def plot_sentiment_chart(sentiment_data):
         return
     filtered_labels, filtered_sizes, filtered_colors = zip(*filtered_data)
     explode = [0.03] * len(filtered_labels)
-    fig, ax = plt.subplots(figsize=(5.6, 5.6))  # Reduzido 30%
+    fig, ax = plt.subplots(figsize=(3, 3))  # Reduzido
     wedges, texts, autotexts = ax.pie(
         filtered_sizes,
         explode=explode,
@@ -254,15 +254,15 @@ def plot_sentiment_chart(sentiment_data):
     )
     for autotext in autotexts:
         autotext.set_color('#f3f3f3')
-        autotext.set_fontsize(12)
+        autotext.set_fontsize(9)
         autotext.set_fontweight('bold')
     for text in texts:
         text.set_color('#1f2329')
-        text.set_fontsize(10)
+        text.set_fontsize(8)
     centre_circle = plt.Circle((0,0),0.70,fc='#f3f3f3')
     fig.gca().add_artist(centre_circle)
     ax.axis('equal')
-    ax.set_title('1. Análise de Sentimento Geral', pad=20, color='#1f2329')
+    ax.set_title('1. Análise de Sentimento Geral', pad=12, color='#1f2329', fontsize=11)
     st.pyplot(fig)
 
 def plot_topics_chart(topics_data):
@@ -275,7 +275,7 @@ def plot_topics_chart(topics_data):
     df_topics['negative'] = df_topics['negative'].fillna(0).astype(int)
     df_topics['Total'] = df_topics['positive'] + df_topics['neutral'] + df_topics['negative']
     df_topics = df_topics.sort_values('Total', ascending=True)
-    fig, ax = plt.subplots(figsize=(8.4, max(4.2, len(df_topics) * 0.49)))  # Reduzido 30%
+    fig, ax = plt.subplots(figsize=(4, max(2, len(df_topics) * 0.2)))  # Reduzido
     bar_colors = ['#ff99b0', '#1f2329', '#fe1874']
     df_topics[['positive', 'neutral', 'negative']].plot(
         kind='barh',
@@ -283,13 +283,13 @@ def plot_topics_chart(topics_data):
         color=bar_colors,
         ax=ax
     )
-    ax.set_title('2. Temas Mais Citados por Sentimento', color='#1f2329')
-    ax.set_xlabel('Número de Comentários', color='#1f2329')
-    ax.set_ylabel('Tema', color='#1f2329')
-    ax.set_yticklabels(df_topics['name'], color='#1f2329')
-    ax.tick_params(axis='x', colors='#1f2329')
-    ax.tick_params(axis='y', colors='#1f2329')
-    ax.legend(['Positivo', 'Neutro', 'Negativo'], loc='lower right', frameon=False, labelcolor='#1f2329')
+    ax.set_title('2. Temas Mais Citados por Sentimento', color='#1f2329', fontsize=11)
+    ax.set_xlabel('Número de Comentários', color='#1f2329', fontsize=8)
+    ax.set_ylabel('Tema', color='#1f2329', fontsize=8)
+    ax.set_yticklabels(df_topics['name'], color='#1f2329', fontsize=8)
+    ax.tick_params(axis='x', colors='#1f2329', labelsize=8)
+    ax.tick_params(axis='y', colors='#1f2329', labelsize=8)
+    ax.legend(['Positivo', 'Neutro', 'Negativo'], loc='lower right', frameon=False, labelcolor='#1f2329', fontsize=7)
     plt.tight_layout()
     st.pyplot(fig)
 
@@ -301,19 +301,19 @@ def plot_word_cloud(term_clusters_data):
         import random
         return '#fe1874' if random_state and random_state.randint(0, 2) == 0 else '#1f2329'
     wordcloud = WordCloud(
-        width=700,   # Reduzido 30%
-        height=420,  # Reduzido 30%
+        width=350,
+        height=200,
         background_color='#f3f3f3',
         color_func=color_func,
-        min_font_size=12,
-        max_words=60,
+        min_font_size=10,
+        max_words=50,
         prefer_horizontal=0.8,
         collocations=False
     ).generate_from_frequencies(term_clusters_data)
-    fig = plt.figure(figsize=(8.4, 5.6))  # Reduzido 30%
+    fig = plt.figure(figsize=(4, 2.4))
     plt.imshow(wordcloud, interpolation='bilinear')
     plt.axis('off')
-    plt.title('3. Agrupamento de Termos (Nuvem de Palavras)', pad=20, fontsize=15)
+    plt.title('3. Agrupamento de Termos (Nuvem de Palavras)', pad=12, fontsize=11)
     st.pyplot(fig)
 
 def plot_topic_relations_chart(topic_relations_data):
@@ -330,13 +330,13 @@ def plot_topic_relations_chart(topic_relations_data):
     if not G.edges():
         st.warning("Nenhuma relação válida encontrada para construir o grafo de rede.")
         return
-    fig, ax = plt.subplots(figsize=(8.4, 7))  # Reduzido 30%
+    fig, ax = plt.subplots(figsize=(4, 3.5))
     pos = nx.spring_layout(G, k=0.7, iterations=50, seed=42)
     node_colors = ['#fe1874' for _ in G.nodes()]
-    nx.draw_networkx_nodes(G, pos, node_size=2100, node_color=node_colors, alpha=0.9, ax=ax)
-    nx.draw_networkx_edges(G, pos, width=1.5, edge_color='#1f2329', alpha=0.6, ax=ax)
-    nx.draw_networkx_labels(G, pos, font_size=7, font_weight='bold', font_color='#1f2329', ax=ax)
-    ax.set_title('4. Relação Entre Temas (Grafo de Rede)', pad=20, color='#1f2329')
+    nx.draw_networkx_nodes(G, pos, node_size=900, node_color=node_colors, alpha=0.9, ax=ax)
+    nx.draw_networkx_edges(G, pos, width=1.1, edge_color='#1f2329', alpha=0.6, ax=ax)
+    nx.draw_networkx_labels(G, pos, font_size=6, font_weight='bold', font_color='#1f2329', ax=ax)
+    ax.set_title('4. Relação Entre Temas (Grafo de Rede)', pad=12, color='#1f2329', fontsize=11)
     plt.axis('off')
     plt.tight_layout()
     st.pyplot(fig)
@@ -433,8 +433,6 @@ if all_comments_list:
         st.error("Não foi possível gerar a análise com Gemini. Reveja os dados e tente novamente.")
 else:
     st.info("Faça o upload de comentários, cole manualmente ou insira uma URL do YouTube para iniciar a análise.")
-
-
 
 
 
