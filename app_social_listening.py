@@ -215,23 +215,29 @@ def generate_qualitative_analysis(analysis_results):
     term_clusters = analysis_results.get('term_clusters', {})
     topic_relations = analysis_results.get('topic_relations', [])
 
+    # Formata os dados JSON ANTES de inseri-los na f-string
+    sentiment_json = json.dumps(sentiment, ensure_ascii=False)
+    topics_json = json.dumps(topics, ensure_ascii=False)
+    term_clusters_json = json.dumps(term_clusters, ensure_ascii=False)
+    topic_relations_json = json.dumps(topic_relations, ensure_ascii=False)
+
     prompt = f"""
-    Com base na análise de social listening dos comentários de redes sociais fornecidos, atue como um especialista em Marketing de Produto, Social Listening e Data Analysis. Redija uma análise qualitativa abrangente em até 4 parágrafos, focando nos aprendizados e insights estratégicos.
+Com base na análise de social listening dos comentários de redes sociais fornecidos, atue como um especialista em Marketing de Produto, Social Listening e Data Analysis. Redija uma análise qualitativa abrangente em até 4 parágrafos, focando nos aprendizados e insights estratégicos.
 
-    Considere as seguintes informações:
-    - Sentimento Geral: {json.dumps(sentiment)}
-    - Temas Mais Citados: {json.dumps(topics, ensure_ascii=False)}
-    - Agrupamento de Termos: {json.dumps(term_clusters, ensure_ascii=False)}
-    - Relação entre Temas: {json.dumps(topic_relations, ensure_ascii=False)}
+Considere as seguintes informações:
+- Sentimento Geral: {sentiment_json}
+- Temas Mais Citados: {topics_json}
+- Agrupamento de Termos: {term_clusters_json}
+- Relação entre Temas: {topic_relations_json}
 
-    Sua análise deve:
-    1.  Contextualizar o cenário geral do sentimento.
-    2.  Destacar os temas mais relevantes e a percepção do público sobre eles.
-    3.  Pontuar termos-chave e como eles refletem o engajamento ou preocupações.
-    4.  Identificar oportunidades ou desafios emergentes a partir das relações entre temas.
-    5.  Oferecer insights acionáveis para estratégias de produto, comunicação ou atendimento ao cliente.
-    6.  Ser concisa e focada nos aprendizados mais importantes.
-    """
+Sua análise deve:
+1.  Contextualizar o cenário geral do sentimento.
+2.  Destacar os temas mais relevantes e a percepção do público sobre eles.
+3.  Pontuar termos-chave e como eles refletem o engajamento ou preocupações.
+4.  Identificar oportunidades ou desafios emergentes a partir das relações entre temas.
+5.  Oferecer insights acionáveis para estratégias de produto, comunicação ou atendimento ao cliente.
+6.  Ser concisa e focada nos aprendizados mais importantes.
+"""
 
     try:
         response = model.generate_content(prompt)
@@ -239,7 +245,6 @@ def generate_qualitative_analysis(analysis_results):
     except Exception as e:
         st.error(f"Erro ao gerar análise qualitativa com Gemini: {e}")
         return "Não foi possível gerar a análise qualitativa."
-
 @st.cache_data(show_spinner=True)
 def generate_persona_insights(analysis_results, original_text_sample):
     sentiment = analysis_results.get('sentiment', {})
