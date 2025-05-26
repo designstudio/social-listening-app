@@ -21,7 +21,7 @@ if not gemini_api_key:
     st.stop()
 
 genai.configure(api_key=gemini_api_key)
-MODEL_NAME = "gemini-2.5-flash"
+MODEL_NAME = "gemini-2.0-flash"
 model = genai.GenerativeModel(MODEL_NAME)
 
 # ---- PALETA ----
