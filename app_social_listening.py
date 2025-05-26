@@ -1,5 +1,3 @@
-# app_social_listening.py
-
 import streamlit as st
 import pandas as pd
 import json
@@ -324,9 +322,9 @@ def plot_topic_relations(topic_relations_data, topics_data):
 
 # --- APP STREAMLIT ---
 
-st.set_page_config(layout="wide", page_title="Análise de Social Listening com Gemini")
+st.set_page_config(layout="wide", page_title=" Social Listening Tool + AI")
 
-st.title("🗣️ Análise de Social Listening com Gemini")
+st.title("🗣️ Social Listening Tool + AI")
 st.markdown("---")
 
 st.sidebar.header("Fonte dos Dados")
@@ -336,7 +334,6 @@ data_source_option = st.sidebar.radio(
 )
 
 all_comments_list = []
-file_ready = False
 
 if data_source_option == "Upload de Arquivo (CSV, Excel, Word)":
     uploaded_file = st.sidebar.file_uploader(
@@ -352,7 +349,6 @@ if data_source_option == "Upload de Arquivo (CSV, Excel, Word)":
             st.sidebar.write("Amostra dos comentários:")
             for i, comment in enumerate(all_comments_list[:5]):
                 st.sidebar.text(f"- {comment[:70]}...")
-            file_ready = True
         else:
             st.sidebar.warning("Nenhum comentário válido foi extraído do arquivo. Verifique o formato ou a coluna 'comentario'.")
 elif data_source_option == "URL de Vídeo do YouTube":
@@ -364,22 +360,35 @@ elif data_source_option == "URL de Vídeo do YouTube":
             st.sidebar.write("Amostra dos comentários:")
             for i, comment in enumerate(all_comments_list[:5]):
                 st.sidebar.text(f"- {comment[:70]}...")
-            file_ready = True
         else:
             st.sidebar.warning("Não foi possível baixar comentários. Verifique a URL ou privacidade do vídeo.")
 
-# --- Botão de Processar ---
-processar = st.button("🚀 Processar Análise", disabled=not file_ready, key="btn_processar")
+# CAMPO DE TEXTO MANUAL EXTRA
+with st.expander("Ou cole comentários manualmente (um por linha):"):
+    manual_text = st.text_area("Cole comentários aqui:", height=150)
+    if manual_text.strip():
+        manual_comments = [l for l in manual_text.split("\n") if l.strip()]
+        if manual_comments:
+            all_comments_list = manual_comments
+            st.success(f"{len(manual_comments)} comentários colados.")
 
-st.markdown("---")
+# BOTÃO PROCESSAR ANÁLISE
+processar = st.button("🚀 Processar Análise", type="primary")
 
-if all_comments_list and processar:
-    st.header("Análise concluída!")
+if processar and all_comments_list:
+    st.success("Análise concluída!")
     text_to_analyze = "\n".join(all_comments_list)
     with st.spinner("Processando análise com Gemini..."):
         analysis_results = analyze_text_with_gemini(text_to_analyze)
     if analysis_results:
-        tabs = st.tabs(["📊 Sentimento", "💡 Temas", "🔑 Termos-Chave", "🔗 Relações entre Temas", "📝 Análise Qualitativa", "🚀 Testes de Growth (ICE Score)"])
+        tabs = st.tabs([
+            "📊 Sentimento",
+            "💡 Temas",
+            "🔑 Termos-Chave",
+            "🔗 Relações entre Temas",
+            "📝 Análise Qualitativa",
+            "🚀 Testes de Growth (ICE Score)"
+        ])
         with tabs[0]:
             st.subheader("Sentimento Geral")
             plot_sentiment(analysis_results.get('sentiment', {}))
@@ -413,3 +422,6 @@ if all_comments_list and processar:
         st.error("Não foi possível gerar a análise com Gemini. Reveja os dados e tente novamente.")
 elif processar:
     st.warning("Nenhum comentário disponível para análise.")
+
+st.markdown("---")
+st.markdown("Desenvolvido com Python, ❤️ e AI por Pedro Costa | Product Marketing & Martech Specialist")
