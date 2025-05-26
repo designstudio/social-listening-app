@@ -12,7 +12,7 @@ import networkx as nx
 from wordcloud import WordCloud
 import random
 
-# ----------------- CONFIG GEMINI API -----------------
+# ---- CONFIG GEMINI API ----
 import google.generativeai as genai
 
 gemini_api_key = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -24,7 +24,7 @@ genai.configure(api_key=gemini_api_key)
 MODEL_NAME = "gemini-1.5-flash"
 model = genai.GenerativeModel(MODEL_NAME)
 
-# ----------------- PALETA LOVABLE -----------------
+# ---- PALETA ----
 CUSTOM_COLORS = {
     'primary': '#fe1874',
     'secondary': '#1f2329',
@@ -32,7 +32,7 @@ CUSTOM_COLORS = {
     'positive_light_pink': '#ff99b0'
 }
 
-# ----------------- EXTRAÇÃO -----------------
+# ---- EXTRAÇÃO ----
 @st.cache_data(show_spinner=False)
 def extract_text_from_file(file_contents, file_extension):
     text_content_list = []
@@ -85,16 +85,15 @@ def download_youtube_comments(youtube_url):
         st.error(f"Erro no download: {e}")
         return []
 
-# ----------------- CLEAN JSON -----------------
+# ---- CLEAN JSON ----
 def clean_json_response(response_text):
     cleaned = re.sub(r"^```.*?\n|\n```$", "", response_text.strip(), flags=re.DOTALL).strip()
-    cleaned = re.sub(r"(?<!\\)'", '"', cleaned)
-    cleaned = re.sub(r'(\{|,)\s*(\w+)\s*:', r'\1 "\2":', cleaned)
-    cleaned = re.sub(r'([}\]"])\s*([\{\["])', r'\1,\2', cleaned)
+    # Corrige aspas e vírgulas fora do lugar (robustez para Gemini)
+    cleaned = cleaned.replace("\'", "\"")
     cleaned = re.sub(r',\s*([\]}])', r'\1', cleaned)
     return cleaned
 
-# ----------------- GEMINI ANÁLISE -----------------
+# ---- GEMINI ANÁLISE ----
 def analyze_text_with_gemini(text_to_analyze):
     if not text_to_analyze.strip():
         return {
@@ -105,9 +104,40 @@ def analyze_text_with_gemini(text_to_analyze):
         }
 
     prompt = f"""
-    Analise o texto de comentários de redes sociais abaixo de forma estritamente objetiva, factual e consistente.\nExtraia as informações solicitadas. Calcule as porcentagens e contagens EXATAS com base no total de comentários relevantes.\nRetorne apenas o JSON, sem texto antes ou depois.\n
-    Estrutura:\n    {{\n      \"sentiment\": {{\n        \"positive\": float,\n        \"neutral\": float,\n        \"negative\": float,\n        \"no_sentiment_detected\": float\n      }},\n      \"topics\": [\n        {{\n          \"name\": \"Tema\",\n          \"positive\": int,\n          \"neutral\": int,\n          \"negative\": int\n        }}\n      ],\n      \"term_clusters\": {{\n        \"termo1\": int\n      }},\n      \"topic_relations\": [\n        {{\n          \"source\": \"Tema A\",\n          \"target\": \"Tema B\",\n          \"description\": \"Descrição\"\n        }}\n      ]\n    }}\n    Texto para análise:\n    \"{text_to_analyze}\"\n    """
+Analise o texto de comentários de redes sociais abaixo de forma estritamente objetiva, factual e consistente.
+Extraia as informações solicitadas. Calcule as porcentagens e contagens EXATAS com base no total de comentários relevantes.
+Retorne apenas o JSON, sem texto antes ou depois.
 
+Estrutura:
+{{
+  "sentiment": {{
+    "positive": float,
+    "neutral": float,
+    "negative": float,
+    "no_sentiment_detected": float
+  }},
+  "topics": [
+    {{
+      "name": "Tema",
+      "positive": int,
+      "neutral": int,
+      "negative": int
+    }}
+  ],
+  "term_clusters": {{
+    "termo1": int
+  }},
+  "topic_relations": [
+    {{
+      "source": "Tema A",
+      "target": "Tema B",
+      "description": "Descrição"
+    }}
+  ]
+}}
+Texto para análise:
+"{text_to_analyze}"
+    """
     try:
         response = model.generate_content(prompt)
         response_text = clean_json_response(response.text)
@@ -115,17 +145,21 @@ def analyze_text_with_gemini(text_to_analyze):
         return data
     except Exception as e:
         st.error(f"Erro ao analisar/parsear JSON: {e}")
-        st.code(response_text, language="json")
+        st.code(response_text if 'response_text' in locals() else '', language="json")
         return None
 
-# ----------------- GERAÇÃO DE ANÁLISES -----------------
 def generate_qualitative_analysis(analysis_results, original_text_sample):
     sentiment = analysis_results.get('sentiment', {})
     topics = analysis_results.get('topics', [])
     term_clusters = analysis_results.get('term_clusters', {})
     topic_relations = analysis_results.get('topic_relations', [])
     prompt = f"""
-    Com base na análise de social listening dos comentários de redes sociais fornecidos, redija uma análise qualitativa abrangente em até 4 parágrafos, focando nos aprendizados e insights estratégicos. Considere:\nSentimento Geral: {json.dumps(sentiment)}\nTemas Mais Citados: {json.dumps(topics, ensure_ascii=False)}\nAgrupamento de Termos: {json.dumps(term_clusters, ensure_ascii=False)}\nRelação entre Temas: {json.dumps(topic_relations, ensure_ascii=False)}\n    """
+Com base na análise de social listening dos comentários de redes sociais fornecidos, redija uma análise qualitativa abrangente em até 4 parágrafos, focando nos aprendizados e insights estratégicos. Considere:
+Sentimento Geral: {json.dumps(sentiment)}
+Temas Mais Citados: {json.dumps(topics, ensure_ascii=False)}
+Agrupamento de Termos: {json.dumps(term_clusters, ensure_ascii=False)}
+Relação entre Temas: {json.dumps(topic_relations, ensure_ascii=False)}
+    """
     try:
         response = model.generate_content(prompt)
         return response.text.strip()
@@ -139,7 +173,10 @@ def generate_persona_insights(analysis_results, original_text_sample):
     term_clusters = analysis_results.get('term_clusters', {})
     original_text_display = original_text_sample[:1000] + "..." if len(original_text_sample) > 1000 else original_text_sample
     prompt = f"""
-    Com base na análise de social listening fornecida, crie uma persona sintética: dores, interesses, tom de comunicação, oportunidades de engajamento, e um nome sugestivo para a persona.\nComentários originais (amostra): {original_text_display}\nResultados: Sentimento: {json.dumps(sentiment)}, Temas: {json.dumps(topics, ensure_ascii=False)}, Termos: {json.dumps(term_clusters, ensure_ascii=False)}\n    """
+Com base na análise de social listening fornecida, crie uma persona sintética: dores, interesses, tom de comunicação, oportunidades de engajamento, e um nome sugestivo para a persona.
+Comentários originais (amostra): {original_text_display}
+Resultados: Sentimento: {json.dumps(sentiment)}, Temas: {json.dumps(topics, ensure_ascii=False)}, Termos: {json.dumps(term_clusters, ensure_ascii=False)}
+    """
     try:
         response = model.generate_content(prompt)
         return response.text.strip()
@@ -153,7 +190,10 @@ def generate_ice_score_tests(analysis_results):
     term_clusters = analysis_results.get('term_clusters', {})
     topic_relations = analysis_results.get('topic_relations', [])
     prompt = f"""
-    Com base na análise de social listening fornecida, sugira EXATAMENTE 10 testes de Growth priorizados usando ICE Score (Impacto, Confiança, Facilidade).\nPara cada teste, informe uma variável principal de alavancagem: \"Canal\", \"Segmentação\", \"Formato\", \"Criativo\" ou \"Copy/Argumento\".\nRetorne apenas JSON, ordenado por ICE Score decrescente.\n    """
+Com base na análise de social listening fornecida, sugira EXATAMENTE 10 testes de Growth priorizados usando ICE Score (Impacto, Confiança, Facilidade).
+Para cada teste, informe uma variável principal de alavancagem: "Canal", "Segmentação", "Formato", "Criativo" ou "Copy/Argumento".
+Retorne apenas JSON, ordenado por ICE Score decrescente.
+    """
     try:
         response = model.generate_content(prompt)
         response_text = clean_json_response(response.text)
@@ -161,10 +201,10 @@ def generate_ice_score_tests(analysis_results):
         return data
     except Exception as e:
         st.error(f"Erro ao gerar ICE Score: {e}")
-        st.code(response_text, language="json")
+        st.code(response_text if 'response_text' in locals() else '', language="json")
         return None
 
-# ----------------- PLOTAGEM -----------------
+# ---- VISUALIZAÇÃO ----
 def plot_sentiment_chart(sentiment_data):
     if not sentiment_data or sum(sentiment_data.values()) == 0:
         st.warning("Dados de sentimento vazios.")
@@ -269,7 +309,7 @@ def plot_topic_relations_chart(topic_relations_data):
     plt.tight_layout()
     st.pyplot(fig)
 
-# ----------------- INTERFACE STREAMLIT -----------------
+# ---- INTERFACE ----
 st.set_page_config(layout="wide", page_title="Análise de Social Listening com Gemini")
 st.title("🗣️ Análise de Social Listening com Gemini (by Pedro)")
 
@@ -293,4 +333,45 @@ elif data_source_option == "Upload de Arquivo (CSV, Excel, Word)":
     if uploaded_file:
         file_extension = os.path.splitext(uploaded_file.name)[1].lower()
         file_contents = uploaded_file.read()
-        all_comments_list = extract
+        all_comments_list = extract_text_from_file(file_contents, file_extension)
+elif data_source_option == "URL de Vídeo do YouTube":
+    youtube_url_input = st.sidebar.text_input("Insira a URL do vídeo do YouTube:")
+    if youtube_url_input:
+        all_comments_list = download_youtube_comments(youtube_url_input)
+
+st.markdown("---")
+
+if all_comments_list:
+    st.info(f"Total de {len(all_comments_list)} comentários coletados e prontos para análise.")
+    MAX_TEXT_LENGTH_FOR_GEMINI = 100000
+    combined_comments = "\n".join(all_comments_list)
+    if len(combined_comments) > MAX_TEXT_LENGTH_FOR_GEMINI:
+        st.warning(f"O número de caracteres dos comentários ({len(combined_comments)}) excede o limite recomendado ({MAX_TEXT_LENGTH_FOR_GEMINI}). Análise será feita em amostra truncada.")
+        combined_comments = combined_comments[:MAX_TEXT_LENGTH_FOR_GEMINI] + "..."
+    # Usa o session_state para não re-analisar repetidamente o mesmo texto
+    if 'analysis_results' not in st.session_state or st.session_state.get('last_combined_comments') != combined_comments:
+        st.session_state.analysis_results = analyze_text_with_gemini(combined_comments)
+        st.session_state.last_combined_comments = combined_comments
+        st.session_state.original_text_sample = combined_comments
+    analysis_results = st.session_state.analysis_results
+    if analysis_results:
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            "📊 Sentimento", "💡 Temas", "☁️ Termos-Chave",
+            "🔗 Relações entre Temas", "📝 Análise Qualitativa", "🚀 Testes de Growth (ICE Score)"
+        ])
+        with tab1:
+            st.header("Análise de Sentimento Geral")
+            plot_sentiment_chart(analysis_results.get('sentiment', {}))
+            st.json(analysis_results.get('sentiment', {}))
+        with tab2:
+            st.header("Temas Mais Citados")
+            plot_topics_chart(analysis_results.get('topics', []))
+            st.json(analysis_results.get('topics', []))
+        with tab3:
+            st.header("Agrupamento de Termos/Nuvem de Palavras")
+            plot_word_cloud(analysis_results.get('term_clusters', {}))
+            st.json(analysis_results.get('term_clusters', {}))
+        with tab4:
+            st.header("Relação entre Temas")
+            plot_topic_relations_chart(analysis_results.get('topic_relations', []))
+           
