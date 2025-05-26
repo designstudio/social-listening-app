@@ -14,13 +14,20 @@ import google.generativeai as genai
 # --- Configuração da API Gemini ---
 gemini_api_key = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
 if not gemini_api_key:
-    st.error("Chave da API do Google Gemini não encontrada. Configure-a no 'secrets.toml' ou como variável de ambiente.")
+    st.error("Chave da API do Google Gemini não encontrada. Configure-a no painel de Secrets ou como variável de ambiente.")
     st.stop()
 
 genai.configure(api_key=gemini_api_key)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- Funções de Extração de Dados ---
+# --- Funções Auxiliares ---
+def clean_json_response(response_text):
+    cleaned = re.sub(r"^```.*?\n|\n```$", "", response_text.strip(), flags=re.DOTALL).strip()
+    cleaned = cleaned.replace("'", '"')
+    cleaned = re.sub(r'(?<!")(\b\w+\b)\s*:', r'"\1":', cleaned)
+    return cleaned
+
+# --- Extração de Dados ---
 @st.cache_data(show_spinner=False)
 def extract_text_from_file(file_contents, file_extension):
     text_content_list = []
@@ -66,21 +73,30 @@ def download_youtube_comments(youtube_url):
         st.error(f"Erro no download: {e}")
         return []
 
-# --- Funções de Análise ---
-def clean_json_response(response_text):
-    return re.sub(r"^```.*?\n|\n```$", "", response_text.strip(), flags=re.DOTALL).strip()
-
+# --- Análise com Gemini ---
 def analyze_text_with_gemini(text_to_analyze):
     if not text_to_analyze.strip():
         return {"sentiment": {"positive": 0.0, "neutral": 0.0, "negative": 0.0, "no_sentiment_detected": 100.0},
                 "topics": [], "term_clusters": {}, "topic_relations": []}
-    prompt = f"""Analise o seguinte texto e retorne JSON no formato especificado (omitido por brevidade). Texto: {text_to_analyze}"""
+
+    prompt = f"""
+Analise o seguinte texto e retorne um JSON válido, com TODAS as chaves e strings entre aspas duplas.
+Não use blocos de código (sem ```).
+Texto para análise:
+{text_to_analyze}
+"""
+
     try:
         response = model.generate_content(prompt)
-        data = json.loads(clean_json_response(response.text))
+        response_text = clean_json_response(response.text)
+        data = json.loads(response_text)
         return data
+    except json.JSONDecodeError as e:
+        st.error(f"Erro ao converter JSON: {e}")
+        st.code(response_text)
+        return None
     except Exception as e:
-        st.error(f"Erro na análise: {e}")
+        st.error(f"Erro inesperado na análise: {e}")
         return None
 
 def generate_qualitative_analysis(analysis_results):
@@ -114,7 +130,7 @@ def generate_ice_score_tests(analysis_results):
         st.error(f"Erro no ICE Score: {e}")
         return None
 
-# --- Funções de Visualização ---
+# --- Visualizações ---
 def plot_sentiment(sentiment_data):
     if not sentiment_data or sum(sentiment_data.values()) == 0:
         st.warning("Dados insuficientes para o gráfico.")
