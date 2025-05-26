@@ -23,8 +23,10 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 # --- Funções Auxiliares ---
 def clean_json_response(response_text):
     cleaned = re.sub(r"^```.*?\n|\n```$", "", response_text.strip(), flags=re.DOTALL).strip()
-    cleaned = cleaned.replace("'", '"')
-    cleaned = re.sub(r'(?<!")(\b\w+\b)\s*:', r'"\1":', cleaned)
+    cleaned = re.sub(r"(?<!\\)'", '"', cleaned)
+    cleaned = re.sub(r'(\{|,)\s*(\w+)\s*:', r'\1 "\2":', cleaned)
+    cleaned = re.sub(r'([}\]"])\s*([{\["])', r'\1,\2', cleaned)
+    cleaned = re.sub(r',\s*([\]}])', r'\1', cleaned)
     return cleaned
 
 # --- Extração de Dados ---
@@ -61,7 +63,6 @@ def download_youtube_comments(youtube_url):
         if not video_id:
             st.error("URL inválida.")
             return []
-
         with st.spinner("Baixando comentários..."):
             all_comments = []
             for i, comment in enumerate(downloader.get_comments(video_id)):
@@ -80,9 +81,9 @@ def analyze_text_with_gemini(text_to_analyze):
                 "topics": [], "term_clusters": {}, "topic_relations": []}
 
     prompt = f"""
-Analise o seguinte texto e retorne um JSON válido, com TODAS as chaves e strings entre aspas duplas.
-Não use blocos de código (sem ```).
-Texto para análise:
+Analise o seguinte texto e retorne APENAS o JSON válido, com todas as chaves e strings entre aspas duplas.
+Sem blocos de código, sem texto antes ou depois, apenas o JSON.
+Texto:
 {text_to_analyze}
 """
 
@@ -93,16 +94,17 @@ Texto para análise:
         return data
     except json.JSONDecodeError as e:
         st.error(f"Erro ao converter JSON: {e}")
-        st.code(response_text)
+        st.warning("Verifique se o texto analisado está muito grande ou se o Gemini retornou algo fora do padrão.")
+        st.code(response_text, language="json")
         return None
     except Exception as e:
-        st.error(f"Erro inesperado na análise: {e}")
+        st.error(f"Erro inesperado: {e}")
         return None
 
 def generate_qualitative_analysis(analysis_results):
     try:
         context = json.dumps(analysis_results, ensure_ascii=False)
-        prompt = f"Com base neste JSON: {context}, escreva uma análise qualitativa."
+        prompt = f"Com base neste JSON: {context}, escreva uma análise qualitativa com até 4 parágrafos."
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
@@ -112,7 +114,7 @@ def generate_qualitative_analysis(analysis_results):
 def generate_persona_insights(analysis_results, original_text_sample):
     try:
         context = json.dumps(analysis_results, ensure_ascii=False)
-        prompt = f"Baseado neste JSON: {context}, e neste texto: {original_text_sample[:1000]}, descreva uma persona sintética."
+        prompt = f"Com base neste JSON: {context} e no texto: {original_text_sample[:1000]}, descreva uma persona sintética."
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
@@ -122,9 +124,10 @@ def generate_persona_insights(analysis_results, original_text_sample):
 def generate_ice_score_tests(analysis_results):
     try:
         context = json.dumps(analysis_results, ensure_ascii=False)
-        prompt = f"Com base neste JSON: {context}, gere 10 testes de growth com ICE Score."
+        prompt = f"Com base neste JSON: {context}, gere 10 testes de growth com ICE Score, no formato JSON."
         response = model.generate_content(prompt)
-        data = json.loads(clean_json_response(response.text))
+        response_text = clean_json_response(response.text)
+        data = json.loads(response_text)
         return data
     except Exception as e:
         st.error(f"Erro no ICE Score: {e}")
