@@ -322,7 +322,7 @@ def plot_topic_relations(topic_relations_data, topics_data):
 
 # --- APP STREAMLIT ---
 
-st.set_page_config(layout="wide", page_title=" Social Listening Tool + AI")
+st.set_page_config(layout="wide", page_title="Social Listening Tool + AI")
 
 st.title("🗣️ Social Listening Tool + AI")
 st.markdown("---")
@@ -372,11 +372,8 @@ with st.expander("Ou cole comentários manualmente (um por linha):"):
             all_comments_list = manual_comments
             st.success(f"{len(manual_comments)} comentários colados.")
 
-# BOTÃO PROCESSAR ANÁLISE
-processar = st.button("🚀 Processar Análise", type="primary")
-
-if processar and all_comments_list:
-    st.success("Análise concluída!")
+if all_comments_list:
+    st.success("Comentários carregados! Pronto para analisar.")
     text_to_analyze = "\n".join(all_comments_list)
     with st.spinner("Processando análise com Gemini..."):
         analysis_results = analyze_text_with_gemini(text_to_analyze)
@@ -420,8 +417,10 @@ if processar and all_comments_list:
                     st.warning("Não foi possível gerar sugestões de testes de growth.")
     else:
         st.error("Não foi possível gerar a análise com Gemini. Reveja os dados e tente novamente.")
-elif processar:
-    st.warning("Nenhum comentário disponível para análise.")
+else:
+    st.info("Faça o upload de comentários, cole manualmente ou insira uma URL do YouTube para iniciar a análise.")
+
+
 
 st.markdown("---")
 st.markdown("Desenvolvido com Python, ❤️ e AI por Pedro Costa | Product Marketing & Martech Specialist")
