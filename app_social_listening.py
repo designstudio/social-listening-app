@@ -496,16 +496,38 @@ else:
 # --- FOOTER / SEÇÃO DE CAPTAÇÃO DE E-MAIL COM TALLY ---
 st.markdown("---") # Linha divisória para separar do conteúdo principal
 
-st.subheader("💡 Gostou de testar a aplicação?") # Título atualizado
+st.subheader("💡 Gostou de testar a aplicação?")
 st.markdown("""
     Essa versão de teste possuí uma limitação de comentários que podem ser analisados e de volume de análises por dia.
 
     Caso tenha interesse em acessar a aplicação completa, sinalize por aqui, e eu te avisarei sobre o lançamento da versão final da aplicação com acesso irrestrito.
-""") # Texto atualizado
+""")
 
 # Link para o formulário Tally
 TALLY_FORM_URL = "https://tally.so/r/w2yrzg"
-st.markdown(f"[**Clique aqui para manifestar seu interesse!**]({TALLY_FORM_URL})")
+
+# Estilo para simular o botão "Browse files"
+# As cores e paddings são aproximadas do tema claro do Streamlit.
+st.markdown(f"""
+<a href="{TALLY_FORM_URL}" target="_blank" style="
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.75rem; /* Ajustado para parecer mais com o padding do browse files */
+    border-radius: 0.25rem; /* Ajustado para um arredondamento padrão do Streamlit */
+    border: 1px solid rgba(0, 0, 0, 0.2); /* Borda cinza clara */
+    color: rgb(58, 93, 255); /* Azul/roxo do Streamlit, pode variar com o tema */
+    background-color: rgb(240, 242, 246); /* Fundo cinza claro */
+    font-weight: 400;
+    font-size: 1rem;
+    line-height: 1.6;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.1s ease 0s, border-color 0.1s ease 0s;
+">
+  Clique aqui para manifestar seu interesse!
+</a>
+""", unsafe_allow_html=True)
 
 st.markdown("---") # Outra linha divisória no final
 
