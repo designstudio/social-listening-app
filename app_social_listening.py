@@ -20,6 +20,9 @@ if not gemini_api_key:
 genai.configure(api_key=gemini_api_key)
 model = genai.GenerativeModel('gemini-2.0-flash')
 
+# --- CONSTANTE PARA LIMITE DE COMENTÁRIOS ---
+MAX_COMMENTS_TO_PROCESS = 100 # Alterado para 100
+
 # --- EXTRAÇÃO DE DADOS ---
 @st.cache_data(show_spinner=False)
 def extract_text_from_file(file_contents, file_extension):
@@ -50,11 +53,11 @@ def extract_text_from_file(file_contents, file_extension):
     except Exception as e:
         st.error(f"Erro ao extrair texto do arquivo: {e}")
         return []
+    
     return text_content_list
 
 @st.cache_data(show_spinner=False)
 def download_youtube_comments(youtube_url):
-    MAX_COMMENTS_LIMIT = 2000
     try:
         downloader = YoutubeCommentDownloader()
         video_id = None
@@ -64,20 +67,22 @@ def download_youtube_comments(youtube_url):
         if not video_id:
             st.error(f"URL do YouTube inválida: {youtube_url}.")
             return []
+        
         with st.spinner(f"Baixando comentários do vídeo: {youtube_url}..."):
             all_comments = []
-            comment_count = 0
             try:
                 comments_generator = downloader.get_comments(video_id)
                 for comment in comments_generator:
                     all_comments.append(comment['text'])
-                    comment_count += 1
-                    if comment_count >= MAX_COMMENTS_LIMIT:
+                    # Adicione um limite interno para o downloader do YouTube para evitar downloads excessivos
+                    if len(all_comments) >= MAX_COMMENTS_TO_PROCESS * 2: # Baixa um pouco mais para ter certeza de atingir o limite
                         break
             except Exception as e:
                 st.error(f"Não foi possível baixar comentários: {e}")
                 return []
+            
             return all_comments
+
     except Exception as e:
         st.error(f"Erro geral ao baixar comentários: {e}.")
         return []
@@ -92,14 +97,18 @@ def analyze_text_with_gemini(text_to_analyze):
             "term_clusters": {},
             "topic_relations": []
         }
+    
+    num_comments_in_prompt = len(text_to_analyze.split('\n'))
+    
     prompt = f"""
 Analise o texto de comentários de redes sociais abaixo de forma estritamente objetiva, factual e consistente.
+Estes {num_comments_in_prompt} comentários são uma amostra ou o total de comentários disponíveis para análise.
 Extraia as informações solicitadas. Calcule as porcentagens e contagens EXATAS com base no total de comentários relevantes.
 Forneça as seguintes informações em formato JSON, exatamente como a estrutura definida. Não inclua nenhum texto adicional antes ou depois do JSON.
-1.  Sentimento Geral: A porcentagem de comentários classificados como 'Positivo', 'Neutro', 'Negativo' e 'Sem Sentimento Detectado'. As porcentagens devem somar 100%.
-2.  Temas Mais Citados: Lista de 5 a 10 temas principais discutidos nos comentários, com contagem EXATA de comentários Positivos, Neutros e Negativos.
-3.  Agrupamento de Termos/Nuvem de Palavras: Lista dos 10 a 20 termos ou palavras-chave mais frequentes. Para cada termo, forneça a frequência (contagem de ocorrências).
-4.  Relação entre Temas: Liste 3 a 5 pares de temas que frequentemente aparecem juntos, indicando relação clara e lógica.
+1. Sentimento Geral: A porcentagem de comentários classificados como 'Positivo', 'Neutro', 'Negativo' e 'Sem Sentimento Detectado'. As porcentagens devem somar 100%.
+2. Temas Mais Citados: Lista de 5 a 10 temas principais discutidos nos comentários, com contagem EXATA de comentários Positivos, Neutros e Negativos.
+3. Agrupamento de Termos/Nuvem de Palavras: Lista dos 10 a 20 termos ou palavras-chave mais frequentes. Para cada termo, forneça a frequência (contagem de ocorrências).
+4. Relação entre Temas: Liste 3 a 5 pares de temas que frequentemente aparecem juntos, indicando relação clara e lógica.
 O JSON deve ter a seguinte estrutura:
 {{
   "sentiment": {{
@@ -139,9 +148,11 @@ Texto para análise:
         if response_text.endswith("```"):
             response_text = response_text[:-len("```")].strip()
         data = json.loads(response_text)
+        
         if 'no_sentiment_detected' not in data['sentiment']:
             total = data['sentiment'].get('positive', 0) + data['sentiment'].get('neutral', 0) + data['sentiment'].get('negative', 0)
             data['sentiment']['no_sentiment_detected'] = round(100.0 - total, 2)
+        
         total_sum = sum(data['sentiment'].values())
         if total_sum != 100 and total_sum != 0:
             for key in data['sentiment']:
@@ -181,7 +192,6 @@ def generate_persona_insights(analysis_results, original_text_sample):
     sentiment = analysis_results.get('sentiment', {})
     topics = analysis_results.get('topics', [])
     term_clusters = analysis_results.get('term_clusters', {})
-    # Limitar tamanho da amostra de texto para não explodir o prompt
     original_text_display = original_text_sample[:1000] + "..." if len(original_text_sample) > 1000 else original_text_sample
     combined_context = f"""
 Comentários originais (amostra): {original_text_display}
@@ -274,7 +284,7 @@ def plot_sentiment_chart(sentiment_data):
         return
     filtered_labels, filtered_sizes, filtered_colors = zip(*filtered_data)
     explode = [0.03] * len(filtered_labels)
-    fig, ax = plt.subplots(figsize=(6, 6))  # Gráfico 30% menor
+    fig, ax = plt.subplots(figsize=(6, 6))
     wedges, texts, autotexts = ax.pie(
         filtered_sizes,
         explode=explode,
@@ -307,7 +317,7 @@ def plot_topics_chart(topics_data):
     df_topics['negative'] = df_topics['negative'].fillna(0).astype(int)
     df_topics['Total'] = df_topics['positive'] + df_topics['neutral'] + df_topics['negative']
     df_topics = df_topics.sort_values('Total', ascending=True)
-    fig, ax = plt.subplots(figsize=(8, max(4, len(df_topics) * 0.5)))  # 30% menor
+    fig, ax = plt.subplots(figsize=(8, max(4, len(df_topics) * 0.5)))
     bar_colors = ['#ff99b0', '#1f2329', '#fe1874']
     df_topics[['positive', 'neutral', 'negative']].plot(
         kind='barh',
@@ -333,7 +343,7 @@ def plot_word_cloud(term_clusters_data):
         import random
         return '#fe1874' if random_state and random_state.randint(0, 2) == 0 else '#1f2329'
     wordcloud = WordCloud(
-        width=700,  # menor
+        width=700,
         height=400,
         background_color='#f3f3f3',
         color_func=color_func,
@@ -342,7 +352,7 @@ def plot_word_cloud(term_clusters_data):
         prefer_horizontal=0.8,
         collocations=False
     ).generate_from_frequencies(term_clusters_data)
-    fig = plt.figure(figsize=(8, 5))  # 30% menor
+    fig = plt.figure(figsize=(8, 5))
     plt.imshow(wordcloud, interpolation='bilinear')
     plt.axis('off')
     plt.title('3. Agrupamento de Termos (Nuvem de Palavras)', pad=16, fontsize=15)
@@ -362,7 +372,7 @@ def plot_topic_relations_chart(topic_relations_data):
     if not G.edges():
         st.warning("Nenhuma relação válida encontrada para construir o grafo de rede.")
         return
-    fig, ax = plt.subplots(figsize=(8, 7))  # menor
+    fig, ax = plt.subplots(figsize=(8, 7))
     pos = nx.spring_layout(G, k=0.7, iterations=50, seed=42)
     node_colors = ['#fe1874' for _ in G.nodes()]
     nx.draw_networkx_nodes(G, pos, node_size=2000, node_color=node_colors, alpha=0.9, ax=ax)
@@ -378,9 +388,10 @@ st.set_page_config(layout="wide", page_title="Social Listening Tool + AI")
 st.title("🗣️ Social Listening Tool + AI")
 st.markdown("---")
 
-st.markdown("Carregue uma base de comentários (.csv, .xls, .xlsx, .doc, .docx), uma URL de vídeo do YouTube, ou cole comentários no campo abaixo. **Todos os gráficos e análises serão gerados automaticamente.**")
+st.markdown(f"Carregue uma base de comentários (.csv, .xls, .xlsx, .doc, .docx), uma URL de vídeo do YouTube, ou cole comentários no campo abaixo. **Serão processados no máximo {MAX_COMMENTS_TO_PROCESS} comentários para análise pela IA.**")
 
 all_comments_list = []
+original_comment_count = 0 # Variável para armazenar a contagem original antes do corte
 
 col1, col2 = st.columns(2)
 with col1:
@@ -392,24 +403,34 @@ with col1:
     if uploaded_file is not None:
         file_extension = os.path.splitext(uploaded_file.name)[1].lower()
         file_contents = uploaded_file.read()
-        all_comments_list = extract_text_from_file(file_contents, file_extension)
+        extracted_comments = extract_text_from_file(file_contents, file_extension)
+        original_comment_count = len(extracted_comments) # Armazena a contagem antes do corte
+        all_comments_list = extracted_comments[:MAX_COMMENTS_TO_PROCESS]
 
 with col2:
     youtube_url_input = st.text_input("Ou insira uma URL de vídeo do YouTube:")
     if youtube_url_input:
         yt_comments = download_youtube_comments(youtube_url_input.strip())
         if yt_comments:
-            all_comments_list = yt_comments
+            original_comment_count = len(yt_comments) # Armazena a contagem antes do corte
+            all_comments_list = yt_comments[:MAX_COMMENTS_TO_PROCESS]
 
 manual_text = st.text_area("Ou cole comentários (um por linha):")
 if manual_text and not all_comments_list:
     manual_comments = [l for l in manual_text.split("\n") if l.strip()]
     if manual_comments:
-        all_comments_list = manual_comments
-        st.success(f"{len(manual_comments)} comentários colados.")
+        original_comment_count = len(manual_comments) # Armazena a contagem antes do corte
+        all_comments_list = manual_comments[:MAX_COMMENTS_TO_PROCESS]
+        st.success(f"{len(all_comments_list)} comentários colados e prontos para análise.")
 
 if all_comments_list:
-    st.success("Comentários carregados! Pronto para analisar.")
+    # Mensagem na tarja verde ajustada
+    if original_comment_count > MAX_COMMENTS_TO_PROCESS:
+        st.success(f"Comentários carregados! O limite de {MAX_COMMENTS_TO_PROCESS} comentários processados nessa versão teste da ferramenta foi atingido. Esse limite é importante para garantir que todos os usuários tenham acesso a um ambiente de teste estável.")
+        st.info(f"Serão processados os primeiros {len(all_comments_list)} comentários para análise.")
+    else:
+        st.success(f"Comentários carregados! Serão processados {len(all_comments_list)} comentários para análise.")
+
     text_to_analyze = "\n".join(all_comments_list)
     with st.spinner("Processando análise com Gemini..."):
         analysis_results = analyze_text_with_gemini(text_to_analyze)
@@ -471,8 +492,6 @@ if all_comments_list:
         st.error("Não foi possível gerar a análise com Gemini. Reveja os dados e tente novamente.")
 else:
     st.info("Faça o upload de comentários, cole manualmente ou insira uma URL do YouTube para iniciar a análise.")
-
-
 
 st.markdown("---")
 st.markdown("Desenvolvido com Python, ❤️ e AI por Pedro Costa | Product Marketing & Martech Specialist")
