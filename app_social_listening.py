@@ -18,7 +18,7 @@ if not gemini_api_key:
     st.error("A chave da API do Google Gemini não foi encontrada. Configure-a no 'secrets.toml' ou como variável de ambiente GOOGLE_API_KEY.")
     st.stop()
 genai.configure(api_key=gemini_api_key)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash-8b')
 
 # --- EXTRAÇÃO DE DADOS ---
 @st.cache_data(show_spinner=False)
