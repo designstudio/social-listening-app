@@ -18,10 +18,10 @@ if not gemini_api_key:
     st.error("A chave da API do Google Gemini não foi encontrada. Configure-a no 'secrets.toml' ou como variável de ambiente GOOGLE_API_KEY.")
     st.stop()
 genai.configure(api_key=gemini_api_key)
-model = genai.GenerativeModel('gemini-2.0-flash')
+model = genai.GenerativeeraGenerativeModel('gemini-2.0-flash')
 
 # --- CONSTANTE PARA LIMITE DE COMENTÁRIOS ---
-MAX_COMMENTS_TO_PROCESS = 100 # Alterado para 100
+MAX_COMMENTS_TO_PROCESS = 100 # Limite de 100 comentários
 
 # --- EXTRAÇÃO DE DADOS ---
 @st.cache_data(show_spinner=False)
@@ -493,5 +493,21 @@ if all_comments_list:
 else:
     st.info("Faça o upload de comentários, cole manualmente ou insira uma URL do YouTube para iniciar a análise.")
 
-st.markdown("---")
+# --- FOOTER / SEÇÃO DE CAPTAÇÃO DE E-MAIL COM TALLY ---
+st.markdown("---") # Linha divisória para separar do conteúdo principal
+
+st.subheader("💡 Gostou de testar a aplicação?")
+st.markdown("""
+    Essa versão de teste possuí uma limitação de comentários que podem ser analisados e de volume de análises por dia.
+
+    Caso tenha interesse em acessar a aplicação completa, sinalize por aqui, e eu te avisarei sobre o lançamento da versão final da aplicação com acesso irrestrito.
+""")
+
+# Link para o formulário Tally
+# Use o f-string para facilitar a inclusão do link.
+TALLY_FORM_URL = "https://tally.so/r/w2yrzg"
+st.markdown(f"[**Clique aqui!**]({TALLY_FORM_URL})")
+
+st.markdown("---") # Outra linha divisória no final
+
 st.markdown("Desenvolvido com Python, ❤️ e AI por Pedro Costa | Product Marketing & Martech Specialist")
