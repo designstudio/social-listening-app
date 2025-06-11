@@ -3,7 +3,6 @@ pandas
 matplotlib
 seaborn
 python-docx
-youtube-comment-downloader
 networkx
 google-generativeai
 wordcloud
