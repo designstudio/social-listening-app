@@ -3,7 +3,6 @@ import pandas as pd
 import json
 import io
 from docx import Document
-from youtube_comment_downloader import YoutubeCommentDownloader
 import re
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -55,37 +54,6 @@ def extract_text_from_file(file_contents, file_extension):
         return []
     
     return text_content_list
-
-@st.cache_data(show_spinner=False)
-def download_youtube_comments(youtube_url):
-    try:
-        downloader = YoutubeCommentDownloader()
-        video_id = None
-        match = re.search(r'(?:v=|/)([0-9A-Za-z_-]{11}).*', youtube_url)
-        if match:
-            video_id = match.group(1)
-        if not video_id:
-            st.error(f"URL do YouTube inválida: {youtube_url}.")
-            return []
-        
-        with st.spinner(f"Baixando comentários do vídeo: {youtube_url}..."):
-            all_comments = []
-            try:
-                comments_generator = downloader.get_comments(video_id)
-                for comment in comments_generator:
-                    all_comments.append(comment['text'])
-                    # Adicione um limite interno para o downloader do YouTube para evitar downloads excessivos
-                    if len(all_comments) >= MAX_COMMENTS_TO_PROCESS * 2: # Baixa um pouco mais para ter certeza de atingir o limite
-                        break
-            except Exception as e:
-                st.error(f"Não foi possível baixar comentários: {e}")
-                return []
-            
-            return all_comments
-
-    except Exception as e:
-        st.error(f"Erro geral ao baixar comentários: {e}.")
-        return []
 
 # --- ANÁLISE COM GEMINI ---
 @st.cache_data(show_spinner=True)
@@ -388,12 +356,12 @@ st.set_page_config(layout="wide", page_title="Social Listening Tool + AI")
 st.title("🗣️ Social Listening Tool + AI")
 st.markdown("---")
 
-st.markdown(f"Carregue uma base de comentários (.csv, .xls, .xlsx, .doc, .docx), uma URL de vídeo do YouTube, ou cole comentários no campo abaixo. **Serão processados no máximo {MAX_COMMENTS_TO_PROCESS} comentários para análise pela IA.**")
+st.markdown(f"Carregue uma base de comentários (.csv, .xls, .xlsx, .doc, .docx) ou cole comentários no campo abaixo. **Serão processados no máximo {MAX_COMMENTS_TO_PROCESS} comentários para análise pela IA.**")
 
 all_comments_list = []
 original_comment_count = 0 # Variável para armazenar a contagem original antes do corte
 
-col1, col2 = st.columns(2)
+col1, _ = st.columns(2)
 with col1:
     uploaded_file = st.file_uploader(
         "Faça upload do arquivo de comentários (.csv, .xls, .xlsx, .doc, .docx):",
@@ -407,13 +375,6 @@ with col1:
         original_comment_count = len(extracted_comments) # Armazena a contagem antes do corte
         all_comments_list = extracted_comments[:MAX_COMMENTS_TO_PROCESS]
 
-with col2:
-    youtube_url_input = st.text_input("Ou insira uma URL de vídeo do YouTube:")
-    if youtube_url_input:
-        yt_comments = download_youtube_comments(youtube_url_input.strip())
-        if yt_comments:
-            original_comment_count = len(yt_comments) # Armazena a contagem antes do corte
-            all_comments_list = yt_comments[:MAX_COMMENTS_TO_PROCESS]
 
 manual_text = st.text_area("Ou cole comentários (um por linha):")
 if manual_text and not all_comments_list:
@@ -491,7 +452,7 @@ if all_comments_list:
     else:
         st.error("Não foi possível gerar a análise com Gemini. Reveja os dados e tente novamente.")
 else:
-    st.info("Faça o upload de comentários, cole manualmente ou insira uma URL do YouTube para iniciar a análise.")
+    st.info("Faça o upload de comentários ou cole manualmente para iniciar a análise.")
 
 # --- FOOTER / SEÇÃO DE CAPTAÇÃO DE E-MAIL COM TALLY ---
 st.markdown("---") # Linha divisória para separar do conteúdo principal
