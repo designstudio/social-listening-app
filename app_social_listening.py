@@ -500,11 +500,11 @@ st.subheader("💡 Gostou de testar a aplicação?")
 st.markdown("""
     Essa versão de teste possuí uma limitação de comentários que podem ser analisados e de volume de análises por dia.
 
-    Caso tenha interesse em acessar a aplicação completa, sinalize por aqui, e eu te avisarei sobre o lançamento da versão final da aplicação com acesso irrestrito.
+    Caso tenha interesse em acessar a aplicação completa, clique aqui para conhecer a versão final da aplicação.
 """)
 
-# Link para o formulário Tally
-TALLY_FORM_URL = "https://tally.so/r/w2yrzg"
+# Link para a ferramenta
+TALLY_FORM_URL = "https://www.theresearchai.online/"
 
 # Estilo para simular o botão "Browse files"
 # As cores e paddings são aproximadas do tema claro do Streamlit.
@@ -525,7 +525,7 @@ st.markdown(f"""
     cursor: pointer;
     transition: background-color 0.1s ease 0s, border-color 0.1s ease 0s;
 ">
-  Clique aqui para manifestar seu interesse!
+  Clique aqui e acesse a ferramenta!
 </a>
 """, unsafe_allow_html=True)
 
